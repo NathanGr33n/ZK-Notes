@@ -30,7 +30,7 @@
 
                 <StackPanel Margin="8,8">
                     <!-- New Note button -->
-                    <Button Content="+ New Note" Command="{Binding CreateNoteCommand}"
+                    <Button Content="Create note" Command="{Binding CreateNoteCommand}"
                             Style="{StaticResource PrimaryButtonStyle}"
                             Margin="4" Padding="10,7" FontSize="13"/>
 

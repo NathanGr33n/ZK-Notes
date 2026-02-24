@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using ZKNotes.Helpers;
 using ZKNotes.Models;
 using ZKNotes.Services;
 
@@ -27,9 +26,6 @@ public partial class NoteEditorViewModel : ObservableObject
 
     [ObservableProperty]
     private string _content = string.Empty;
-
-    [ObservableProperty]
-    private string _previewHtml = string.Empty;
 
     [ObservableProperty]
     private string _tagsDisplay = string.Empty;
@@ -54,12 +50,10 @@ public partial class NoteEditorViewModel : ObservableObject
         Title = note.Title;
         Content = note.Content;
         TagsDisplay = note.Tags.Count > 0 ? string.Join(", ", note.Tags.Select(t => $"#{t}")) : "";
-        UpdatePreview();
     }
 
     partial void OnContentChanged(string value)
     {
-        UpdatePreview();
         DebounceSave();
     }
 
@@ -109,11 +103,6 @@ public partial class NoteEditorViewModel : ObservableObject
 
         LinkSuggestions = new ObservableCollection<string>(suggestions);
         ShowLinkSuggestions = suggestions.Count > 0;
-    }
-
-    private void UpdatePreview()
-    {
-        PreviewHtml = MarkdownHelper.ToHtml(Content);
     }
 
     /// <summary>

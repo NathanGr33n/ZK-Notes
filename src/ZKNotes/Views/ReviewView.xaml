@@ -10,7 +10,7 @@
 
         <!-- Header -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
-            <TextBlock Text="Weekly Review" FontSize="16" FontWeight="SemiBold"
+            <TextBlock Text="Weekly review" FontSize="16" FontWeight="SemiBold"
                        Foreground="{StaticResource ForegroundBrush}"
                        VerticalAlignment="Center" Margin="0,0,12,0"/>
             <Button Content="Refresh" Click="Refresh_Click" Padding="8,4"
