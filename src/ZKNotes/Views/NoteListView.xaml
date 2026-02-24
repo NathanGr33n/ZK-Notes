@@ -1,0 +1,145 @@
+<UserControl x:Class="ZKNotes.Views.NoteListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="280"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Note list panel -->
+        <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="All Notes" FontSize="14" FontWeight="SemiBold"
+                           Foreground="{StaticResource ForegroundBrush}" Margin="12,12,12,8"/>
+
+                <ListBox x:Name="NotesList" ItemsSource="{Binding Notes}"
+                         SelectedItem="{Binding SelectedNote, Mode=TwoWay}"
+                         Background="Transparent" BorderThickness="0"
+                         Foreground="{StaticResource ForegroundBrush}"
+                         SelectionChanged="NotesList_SelectionChanged"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Margin="4,6">
+                                <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{StaticResource ForegroundBrush}"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock Text="{Binding Snippet}" FontSize="11"
+                                           Foreground="{StaticResource SecondaryForeground}"
+                                           TextTrimming="CharacterEllipsis" MaxHeight="32"/>
+                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                    <TextBlock FontSize="10" Foreground="{StaticResource AccentBrush}">
+                                        <TextBlock.Text>
+                                            <MultiBinding StringFormat="{}{0:MMM dd} · {1}">
+                                                <Binding Path="LastEdit"/>
+                                                <Binding Path="Id"/>
+                                            </MultiBinding>
+                                        </TextBlock.Text>
+                                    </TextBlock>
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="8,4"/>
+                            <Setter Property="Margin" Value="4,1"/>
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                                Padding="{TemplateBinding Padding}" CornerRadius="4">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#37373d"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="#2a2d2e"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                </ListBox>
+            </DockPanel>
+        </Border>
+
+        <!-- Editor / Preview area -->
+        <Grid Grid.Column="1" Margin="16,12"
+              Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Title and controls -->
+            <DockPanel Grid.Row="0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="Save" Command="{Binding Editor.SaveNowCommand}"
+                            Padding="12,6" Margin="4,0"
+                            Background="{StaticResource AccentBrush}" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"/>
+                    <Button Content="Delete" Command="{Binding DeleteNoteCommand}"
+                            Padding="12,6" Margin="4,0"
+                            Background="{StaticResource DangerBrush}" Foreground="White"
+                            BorderThickness="0" Cursor="Hand"/>
+                </StackPanel>
+                <TextBox Text="{Binding Editor.Title, UpdateSourceTrigger=PropertyChanged}"
+                         FontSize="20" FontWeight="Bold"
+                         Background="Transparent" Foreground="{StaticResource ForegroundBrush}"
+                         BorderThickness="0" Padding="0,4"
+                         CaretBrush="{StaticResource ForegroundBrush}"/>
+            </DockPanel>
+
+            <!-- Tags display -->
+            <TextBlock Grid.Row="1" Text="{Binding Editor.TagsDisplay}"
+                       Foreground="{StaticResource AccentBrush}" FontSize="11"
+                       Margin="0,4,0,8"/>
+
+            <!-- Editor and Preview split -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Markdown editor -->
+                <Border Grid.Column="0" Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="6" Margin="0,0,4,0" Padding="8">
+                    <TextBox Text="{Binding Editor.Content, UpdateSourceTrigger=PropertyChanged}"
+                             AcceptsReturn="True" AcceptsTab="True"
+                             TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                             FontFamily="Cascadia Code, Consolas, Courier New"
+                             FontSize="13" Background="Transparent"
+                             Foreground="{StaticResource ForegroundBrush}"
+                             CaretBrush="{StaticResource ForegroundBrush}"
+                             BorderThickness="0"/>
+                </Border>
+
+                <!-- Preview pane -->
+                <Border Grid.Column="1" Background="{StaticResource SurfaceBrush}"
+                        CornerRadius="6" Margin="4,0,0,0">
+                    <wv2:WebView2 x:Name="PreviewWebView"
+                                  DefaultBackgroundColor="Transparent"/>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- Empty state -->
+        <TextBlock Grid.Column="1" Text="Select or create a note to begin"
+                   Foreground="{StaticResource SecondaryForeground}"
+                   FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis},
+                                ConverterParameter=Invert}"/>
+    </Grid>
+</UserControl>

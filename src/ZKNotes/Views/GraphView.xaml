@@ -1,0 +1,60 @@
+<UserControl x:Class="ZKNotes.Views.GraphView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid Background="{StaticResource BackgroundBrush}">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Toolbar -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="12,8">
+            <TextBlock Text="Graph View" FontSize="16" FontWeight="SemiBold"
+                       Foreground="{StaticResource ForegroundBrush}" VerticalAlignment="Center"
+                       Margin="0,0,16,0"/>
+            <Button Content="Refresh" Click="Refresh_Click" Padding="8,4" Margin="4,0"
+                    Background="{StaticResource AccentBrush}" Foreground="White"
+                    BorderThickness="0" Cursor="Hand"/>
+            <Button Content="+" Click="ZoomIn_Click" Padding="8,4" Margin="4,0"
+                    Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource ForegroundBrush}"
+                    BorderThickness="0" Cursor="Hand" Width="32"/>
+            <Button Content="−" Click="ZoomOut_Click" Padding="8,4" Margin="4,0"
+                    Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource ForegroundBrush}"
+                    BorderThickness="0" Cursor="Hand" Width="32"/>
+            <Button Content="Reset" Click="ResetView_Click" Padding="8,4" Margin="4,0"
+                    Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource ForegroundBrush}"
+                    BorderThickness="0" Cursor="Hand"/>
+        </StackPanel>
+
+        <!-- Graph canvas -->
+        <Border Grid.Row="1" ClipToBounds="True" Background="{StaticResource BackgroundBrush}">
+            <Canvas x:Name="GraphCanvas"
+                    MouseWheel="GraphCanvas_MouseWheel"
+                    MouseLeftButtonDown="GraphCanvas_MouseLeftButtonDown"
+                    MouseLeftButtonUp="GraphCanvas_MouseLeftButtonUp"
+                    MouseMove="GraphCanvas_MouseMove"
+                    Background="Transparent">
+                <Canvas.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="CanvasScale" ScaleX="1" ScaleY="1"/>
+                        <TranslateTransform x:Name="CanvasTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Canvas.RenderTransform>
+            </Canvas>
+        </Border>
+
+        <!-- Tooltip overlay -->
+        <Border x:Name="TooltipBorder" Grid.Row="1"
+                Visibility="Collapsed" IsHitTestVisible="False"
+                Background="#ee2d2d2d" CornerRadius="6" Padding="10"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MaxWidth="250">
+            <StackPanel>
+                <TextBlock x:Name="TooltipTitle" FontWeight="Bold" FontSize="13"
+                           Foreground="{StaticResource ForegroundBrush}" TextWrapping="Wrap"/>
+                <TextBlock x:Name="TooltipSnippet" FontSize="11" Margin="0,4,0,0"
+                           Foreground="{StaticResource SecondaryForeground}" TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
