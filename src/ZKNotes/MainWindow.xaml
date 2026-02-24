@@ -31,32 +31,22 @@
                 <StackPanel Margin="8,8">
                     <!-- New Note button -->
                     <Button Content="+ New Note" Command="{Binding CreateNoteCommand}"
-                            Margin="4" Padding="8,6" FontSize="13"
-                            Background="{StaticResource AccentBrush}" Foreground="White"
-                            BorderThickness="0" Cursor="Hand"/>
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Margin="4" Padding="10,7" FontSize="13"/>
 
                     <!-- Navigation buttons -->
                     <Button Content="&#xE70B;  Notes" Tag="Notes" Click="NavButton_Click"
-                            Style="{StaticResource {x:Type Button}}"
-                            Margin="4,12,4,2" Padding="8,8" FontSize="13"
-                            HorizontalContentAlignment="Left"
-                            Background="Transparent" Foreground="{StaticResource ForegroundBrush}"
-                            BorderThickness="0" Cursor="Hand"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,12,4,2" FontSize="13"/>
                     <Button Content="&#xE774;  Graph" Tag="Graph" Click="NavButton_Click"
-                            Margin="4,2" Padding="8,8" FontSize="13"
-                            HorizontalContentAlignment="Left"
-                            Background="Transparent" Foreground="{StaticResource ForegroundBrush}"
-                            BorderThickness="0" Cursor="Hand"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,2" FontSize="13"/>
                     <Button Content="&#xE721;  Search" Tag="Search" Click="NavButton_Click"
-                            Margin="4,2" Padding="8,8" FontSize="13"
-                            HorizontalContentAlignment="Left"
-                            Background="Transparent" Foreground="{StaticResource ForegroundBrush}"
-                            BorderThickness="0" Cursor="Hand"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,2" FontSize="13"/>
                     <Button Content="&#xE7BF;  Review" Tag="Review" Click="NavButton_Click"
-                            Margin="4,2" Padding="8,8" FontSize="13"
-                            HorizontalContentAlignment="Left"
-                            Background="Transparent" Foreground="{StaticResource ForegroundBrush}"
-                            BorderThickness="0" Cursor="Hand"/>
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,2" FontSize="13"/>
                 </StackPanel>
             </DockPanel>
         </Border>

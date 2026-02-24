@@ -17,40 +17,56 @@ public static class MarkdownHelper
         <head>
         <meta charset="utf-8"/>
         <style>
-            body {{
-                font-family: 'Segoe UI', sans-serif;
+            :root {
+                --bg: transparent;
+                --surface: #161A22;
+                --surface2: #1B1F28;
+                --surface3: #202531;
+                --border: #2B3240;
+                --text: #E7EAF0;
+                --muted: #A6ADBB;
+                --accent: #7AA2F7;
+            }
+            body {
+                font-family: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
                 font-size: 14px;
-                line-height: 1.6;
-                color: #e0e0e0;
-                background: #1e1e1e;
+                line-height: 1.65;
+                color: var(--text);
+                background: var(--bg);
                 padding: 16px;
                 margin: 0;
-            }}
-            h1, h2, h3, h4 {{ color: #dcdcdc; margin-top: 1em; }}
-            a.note-link {{ color: #6cb6ff; text-decoration: none; font-weight: 600; }}
-            a.note-link:hover {{ text-decoration: underline; }}
-            a {{ color: #6cb6ff; }}
-            code {{
-                background: #2d2d2d;
+            }
+            h1, h2, h3, h4 {
+                color: var(--text);
+                margin-top: 1.15em;
+            }
+            p, li { color: var(--text); }
+            a.note-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+            a.note-link:hover { text-decoration: underline; }
+            a { color: var(--accent); }
+            code {
+                background: var(--surface3);
+                border: 1px solid var(--border);
                 padding: 2px 6px;
-                border-radius: 3px;
+                border-radius: 4px;
                 font-size: 13px;
-            }}
-            pre {{
-                background: #2d2d2d;
+            }
+            pre {
+                background: var(--surface2);
+                border: 1px solid var(--border);
                 padding: 12px;
-                border-radius: 6px;
+                border-radius: 8px;
                 overflow-x: auto;
-            }}
-            pre code {{ background: none; padding: 0; }}
-            blockquote {{
-                border-left: 3px solid #444;
+            }
+            pre code { background: none; border: none; padding: 0; }
+            blockquote {
+                border-left: 3px solid var(--border);
                 margin-left: 0;
                 padding-left: 12px;
-                color: #999;
-            }}
-            hr {{ border: none; border-top: 1px solid #333; }}
-            img {{ max-width: 100%; }}
+                color: var(--muted);
+            }
+            hr { border: none; border-top: 1px solid var(--border); }
+            img { max-width: 100%; }
         </style>
         </head>
         <body>{0}</body>
@@ -64,7 +80,7 @@ public static class MarkdownHelper
     public static string ToHtml(string markdown)
     {
         if (string.IsNullOrEmpty(markdown))
-            return string.Format(HtmlTemplate, "<p style='color:#666'>No content</p>");
+            return string.Format(HtmlTemplate, "<p style='color:var(--muted)'>No content</p>");
 
         // Replace [[links]] with HTML anchors before Markdown processing
         var processed = LinkParser.ReplaceLinksForHtml(markdown);

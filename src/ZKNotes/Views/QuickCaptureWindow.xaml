@@ -35,14 +35,10 @@
 
         <!-- Buttons -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
-            <Button Content="Cancel" Click="Cancel_Click" Padding="12,6" Margin="4,0"
-                    Background="{StaticResource SurfaceBrush}"
-                    Foreground="{StaticResource ForegroundBrush}"
-                    BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
-                    Cursor="Hand"/>
+            <Button Content="Cancel" Click="Cancel_Click" Padding="12,6" Margin="4,0"/>
             <Button Content="Save Note" Click="Save_Click" Padding="12,6" Margin="4,0"
-                    Background="{StaticResource AccentBrush}" Foreground="White"
-                    BorderThickness="0" Cursor="Hand" IsDefault="True"/>
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    IsDefault="True"/>
         </StackPanel>
     </Grid>
 </Window>

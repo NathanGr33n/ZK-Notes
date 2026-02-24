@@ -15,6 +15,14 @@ public partial class GraphView : UserControl
     private bool _isPanning;
     private const double NodeRadius = 8;
 
+    private static Color GetThemeColor(string brushKey, Color fallback)
+    {
+        if (Application.Current?.Resources[brushKey] is SolidColorBrush brush)
+            return brush.Color;
+
+        return fallback;
+    }
+
     public GraphView()
     {
         InitializeComponent();
@@ -47,6 +55,22 @@ public partial class GraphView : UserControl
 
         var nodeMap = vm.Nodes.ToDictionary(n => n.Id);
 
+        var accent = GetThemeColor("AccentBrush", Color.FromRgb(122, 162, 247));
+        var accentHover = GetThemeColor("AccentHoverBrush", Color.FromRgb(144, 180, 255));
+        var muted = GetThemeColor("SecondaryForeground", Color.FromRgb(166, 173, 187));
+
+        var edgeBrush = new SolidColorBrush(Color.FromArgb(90, accent.R, accent.G, accent.B));
+        edgeBrush.Freeze();
+
+        var nodeFill = new SolidColorBrush(accent);
+        nodeFill.Freeze();
+
+        var nodeStroke = new SolidColorBrush(accentHover);
+        nodeStroke.Freeze();
+
+        var labelBrush = new SolidColorBrush(muted);
+        labelBrush.Freeze();
+
         // Draw edges
         foreach (var edge in vm.Edges)
         {
@@ -58,7 +82,7 @@ public partial class GraphView : UserControl
             {
                 X1 = src.X, Y1 = src.Y,
                 X2 = tgt.X, Y2 = tgt.Y,
-                Stroke = new SolidColorBrush(Color.FromArgb(80, 108, 182, 255)),
+                Stroke = edgeBrush,
                 StrokeThickness = 1.5
             };
             GraphCanvas.Children.Add(line);
@@ -71,8 +95,8 @@ public partial class GraphView : UserControl
             {
                 Width = NodeRadius * 2,
                 Height = NodeRadius * 2,
-                Fill = new SolidColorBrush(Color.FromRgb(108, 182, 255)),
-                Stroke = new SolidColorBrush(Color.FromRgb(140, 200, 255)),
+                Fill = nodeFill,
+                Stroke = nodeStroke,
                 StrokeThickness = 1.5,
                 Cursor = Cursors.Hand,
                 Tag = node
@@ -92,7 +116,7 @@ public partial class GraphView : UserControl
             {
                 Text = node.Title,
                 FontSize = 10,
-                Foreground = new SolidColorBrush(Color.FromRgb(200, 200, 200)),
+                Foreground = labelBrush,
                 IsHitTestVisible = false
             };
             Canvas.SetLeft(label, node.X + NodeRadius + 4);

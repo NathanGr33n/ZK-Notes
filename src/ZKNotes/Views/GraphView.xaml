@@ -13,8 +13,7 @@
                        Foreground="{StaticResource ForegroundBrush}" VerticalAlignment="Center"
                        Margin="0,0,16,0"/>
             <Button Content="Refresh" Click="Refresh_Click" Padding="8,4" Margin="4,0"
-                    Background="{StaticResource AccentBrush}" Foreground="White"
-                    BorderThickness="0" Cursor="Hand"/>
+                    Style="{StaticResource PrimaryButtonStyle}"/>
             <Button Content="+" Click="ZoomIn_Click" Padding="8,4" Margin="4,0"
                     Background="{StaticResource SurfaceBrush}" Foreground="{StaticResource ForegroundBrush}"
                     BorderThickness="0" Cursor="Hand" Width="32"/>
@@ -46,7 +45,9 @@
         <!-- Tooltip overlay -->
         <Border x:Name="TooltipBorder" Grid.Row="1"
                 Visibility="Collapsed" IsHitTestVisible="False"
-                Background="#ee2d2d2d" CornerRadius="6" Padding="10"
+                Background="{StaticResource SurfaceBrush}" Opacity="0.95"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                CornerRadius="6" Padding="10"
                 HorizontalAlignment="Left" VerticalAlignment="Top"
                 MaxWidth="250">
             <StackPanel>

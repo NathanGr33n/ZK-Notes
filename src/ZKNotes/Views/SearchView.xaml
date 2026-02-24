@@ -33,7 +33,7 @@
                     <Button Content="{Binding StringFormat='#{0}'}"
                             Click="Tag_Click" Tag="{Binding}"
                             Padding="6,2" Margin="2"
-                            FontSize="11" Cursor="Hand"
+                            FontSize="11"
                             Background="{StaticResource SurfaceBrush}"
                             Foreground="{StaticResource AccentBrush}"
                             BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"/>
@@ -80,7 +80,7 @@
                                 </Border>
                                 <ControlTemplate.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter TargetName="Bd" Property="Background" Value="#2a2d2e"/>
+                                        <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
                                     </Trigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

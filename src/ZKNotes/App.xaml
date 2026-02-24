@@ -8,15 +8,166 @@
         <conv:PageVisibilityConverter x:Key="PageVisConverter"/>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
 
-        <!-- Dark theme colors -->
-        <SolidColorBrush x:Key="BackgroundBrush" Color="#1e1e1e"/>
-        <SolidColorBrush x:Key="SidebarBrush" Color="#252526"/>
-        <SolidColorBrush x:Key="SurfaceBrush" Color="#2d2d2d"/>
-        <SolidColorBrush x:Key="BorderBrush" Color="#3e3e3e"/>
-        <SolidColorBrush x:Key="ForegroundBrush" Color="#e0e0e0"/>
-        <SolidColorBrush x:Key="SecondaryForeground" Color="#999999"/>
-        <SolidColorBrush x:Key="AccentBrush" Color="#6cb6ff"/>
-        <SolidColorBrush x:Key="AccentHoverBrush" Color="#8ac8ff"/>
-        <SolidColorBrush x:Key="DangerBrush" Color="#f44747"/>
+        <!--
+            Dark theme inspired by kevinvalete.com:
+            mostly blacks/grays with lighter text and subtle borders.
+        -->
+
+        <!-- Base palette -->
+        <Color x:Key="ColorBackground">#0F1115</Color>
+        <Color x:Key="ColorSidebar">#111318</Color>
+        <Color x:Key="ColorSurface">#161A22</Color>
+        <Color x:Key="ColorSurfaceHover">#1B1F28</Color>
+        <Color x:Key="ColorSurfacePressed">#202531</Color>
+        <Color x:Key="ColorBorder">#2B3240</Color>
+        <Color x:Key="ColorForeground">#E7EAF0</Color>
+        <Color x:Key="ColorForegroundMuted">#A6ADBB</Color>
+        <Color x:Key="ColorAccent">#7AA2F7</Color>
+        <Color x:Key="ColorAccentHover">#90B4FF</Color>
+        <Color x:Key="ColorDanger">#F7768E</Color>
+
+        <!-- Brushes (existing keys preserved) -->
+        <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource ColorBackground}"/>
+        <SolidColorBrush x:Key="SidebarBrush" Color="{StaticResource ColorSidebar}"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource ColorSurface}"/>
+        <SolidColorBrush x:Key="HoverBrush" Color="{StaticResource ColorSurfaceHover}"/>
+        <SolidColorBrush x:Key="PressedBrush" Color="{StaticResource ColorSurfacePressed}"/>
+        <SolidColorBrush x:Key="SelectedBrush" Color="{StaticResource ColorSurfacePressed}"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource ColorBorder}"/>
+        <SolidColorBrush x:Key="ForegroundBrush" Color="{StaticResource ColorForeground}"/>
+        <SolidColorBrush x:Key="SecondaryForeground" Color="{StaticResource ColorForegroundMuted}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource ColorAccent}"/>
+        <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource ColorAccentHover}"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource ColorDanger}"/>
+
+        <!-- Typography / sizing -->
+        <FontFamily x:Key="AppFont">Segoe UI Variable Text, Segoe UI</FontFamily>
+        <CornerRadius x:Key="CornerRadiusSm">4</CornerRadius>
+        <CornerRadius x:Key="CornerRadiusMd">6</CornerRadius>
+
+        <!-- Global text defaults -->
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+        </Style>
+
+        <!-- Inputs -->
+        <Style TargetType="TextBox">
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+            <Setter Property="CaretBrush" Value="{StaticResource ForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="SelectionBrush" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="SelectionOpacity" Value="0.35"/>
+        </Style>
+
+        <!-- Buttons -->
+        <Style TargetType="Button">
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="{StaticResource CornerRadiusSm}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PressedBrush}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.55"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                </Trigger>
+                <Trigger Property="IsPressed" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentHoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="DangerButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource DangerBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#FFF88FA3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="NavButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource HoverBrush}"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Lists -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+        </Style>
+
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="Margin" Value="2,1"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource ForegroundBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}" CornerRadius="{StaticResource CornerRadiusSm}">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource SelectedBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Application.Resources>
 </Application>
