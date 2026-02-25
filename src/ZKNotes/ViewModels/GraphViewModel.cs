@@ -69,7 +69,17 @@ public partial class GraphViewModel : ObservableObject
     public void BuildGraph()
     {
         var notes = _main.Notes.ToList();
-        var titleToId = notes.ToDictionary(n => n.Title, n => n.Id, StringComparer.OrdinalIgnoreCase);
+
+        // Notes can share the same title (e.g. multiple "Untitled Note" drafts). Build a
+        // case-insensitive title -> id lookup that won't throw on duplicates.
+        var titleToId = notes
+            .Where(n => !string.IsNullOrWhiteSpace(n.Title))
+            .GroupBy(n => n.Title.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(n => n.LastEdit).First().Id,
+                StringComparer.OrdinalIgnoreCase);
+
         var idSet = new HashSet<string>(notes.Select(n => n.Id));
 
         var nodes = new List<GraphNode>();
