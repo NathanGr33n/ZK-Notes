@@ -26,6 +26,40 @@ public sealed class KnowledgeIndexService
     // noteId -> outbound link tokens (raw targets from [[...]]; includes unresolved title refs)
     private Dictionary<string, HashSet<string>> _outboundTokensById = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Updates a single note in the index incrementally without rebuilding.
+    /// </summary>
+    public void UpdateNote(Note note)
+    {
+        ArgumentNullException.ThrowIfNull(note);
+        
+        lock (_gate)
+        {
+            // Remove old links first
+            RemoveNoteInternal(note.Id);
+            
+            // Add updated note
+            AddNoteInternal(note);
+        }
+    }
+
+    /// <summary>
+    /// Removes a note from the index.
+    /// </summary>
+    public void RemoveNote(string noteId)
+    {
+        if (string.IsNullOrWhiteSpace(noteId))
+            return;
+            
+        lock (_gate)
+        {
+            RemoveNoteInternal(noteId);
+        }
+    }
+
+    /// <summary>
+    /// Rebuilds the entire index from a collection of notes.
+    /// </summary>
     public void Rebuild(IEnumerable<Note> notes)
     {
         ArgumentNullException.ThrowIfNull(notes);
@@ -163,5 +197,115 @@ public sealed class KnowledgeIndexService
         }
 
         return false;
+    }
+
+    private void AddNoteInternal(Note note)
+    {
+        if (string.IsNullOrWhiteSpace(note.Id))
+            return;
+
+        // Add to notes dictionary
+        _notesById[note.Id] = note;
+
+        // Update title index
+        if (!string.IsNullOrWhiteSpace(note.Title))
+        {
+            var titleKey = note.Title.Trim();
+            if (!_idsByTitle.TryGetValue(titleKey, out var ids))
+            {
+                ids = new List<string>();
+                _idsByTitle[titleKey] = ids;
+            }
+            if (!ids.Contains(note.Id, StringComparer.OrdinalIgnoreCase))
+            {
+                ids.Add(note.Id);
+            }
+        }
+
+        // Extract links
+        var tokens = LinkParser.ExtractLinks(note.Content)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _outboundTokensById[note.Id] = tokens;
+
+        // Resolve links
+        var idSet = new HashSet<string>(_notesById.Keys, StringComparer.OrdinalIgnoreCase);
+        var resolvedTargets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        
+        foreach (var token in tokens)
+        {
+            if (TryResolveToId(token, idSet, out var targetId))
+                resolvedTargets.Add(targetId);
+        }
+
+        _outboundById[note.Id] = resolvedTargets;
+
+        // Update inbound links
+        foreach (var targetId in resolvedTargets)
+        {
+            if (!_inboundById.TryGetValue(targetId, out var inbound))
+            {
+                inbound = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                _inboundById[targetId] = inbound;
+            }
+            inbound.Add(note.Id);
+        }
+
+        // Ensure empty sets exist
+        _outboundById.TryAdd(note.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        _inboundById.TryAdd(note.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        _outboundTokensById.TryAdd(note.Id, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+    }
+
+    private void RemoveNoteInternal(string noteId)
+    {
+        if (string.IsNullOrWhiteSpace(noteId))
+            return;
+
+        // Remove from title index
+        if (_notesById.TryGetValue(noteId, out var note) && !string.IsNullOrWhiteSpace(note.Title))
+        {
+            var titleKey = note.Title.Trim();
+            if (_idsByTitle.TryGetValue(titleKey, out var ids))
+            {
+                ids.RemoveAll(id => id.Equals(noteId, StringComparison.OrdinalIgnoreCase));
+                if (ids.Count == 0)
+                {
+                    _idsByTitle.Remove(titleKey);
+                }
+            }
+        }
+
+        // Remove outbound links
+        if (_outboundById.TryGetValue(noteId, out var outbound))
+        {
+            foreach (var targetId in outbound)
+            {
+                if (_inboundById.TryGetValue(targetId, out var inbound))
+                {
+                    inbound.Remove(noteId);
+                }
+            }
+        }
+
+        // Remove inbound links (notes that pointed to this note)
+        if (_inboundById.TryGetValue(noteId, out var inboundLinks))
+        {
+            foreach (var sourceId in inboundLinks.ToList())
+            {
+                if (_outboundById.TryGetValue(sourceId, out var sourceOutbound))
+                {
+                    sourceOutbound.Remove(noteId);
+                }
+            }
+        }
+
+        // Remove from all dictionaries
+        _notesById.Remove(noteId);
+        _outboundById.Remove(noteId);
+        _inboundById.Remove(noteId);
+        _outboundTokensById.Remove(noteId);
     }
 }
