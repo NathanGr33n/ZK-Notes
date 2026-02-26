@@ -45,6 +45,16 @@ public partial class GraphViewModel : ObservableObject
     private const double MinDistance = 30.0;
     private const double IdealEdgeLength = 150.0;
 
+    // Initial layout parameters
+    private const double InitialNodeAreaWidth = 800.0;
+    private const double InitialNodeAreaHeight = 600.0;
+    private const int LayoutIterationCount = 100;
+
+    // Zoom parameters
+    private const double ZoomFactor = 1.2;
+    private const double MaxZoomLevel = 5.0;
+    private const double MinZoomLevel = 0.2;
+
     [ObservableProperty]
     private ObservableCollection<GraphNode> _nodes = [];
 
@@ -101,8 +111,8 @@ public partial class GraphViewModel : ObservableObject
                 Title = note.Title,
                 Snippet = note.Snippet,
                 Tags = note.Tags,
-                X = _rng.NextDouble() * 800,
-                Y = _rng.NextDouble() * 600
+                X = _rng.NextDouble() * InitialNodeAreaWidth,
+                Y = _rng.NextDouble() * InitialNodeAreaHeight
             });
 
             foreach (var link in note.Links)
@@ -127,7 +137,7 @@ public partial class GraphViewModel : ObservableObject
         // Run initial layout iterations in background
         await Task.Run(() =>
         {
-            for (int i = 0; i < 100 && !token.IsCancellationRequested; i++)
+            for (int i = 0; i < LayoutIterationCount && !token.IsCancellationRequested; i++)
             {
                 StepLayout();
             }
@@ -209,10 +219,10 @@ public partial class GraphViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ZoomIn() => ZoomLevel = Math.Min(ZoomLevel * 1.2, 5.0);
+    private void ZoomIn() => ZoomLevel = Math.Min(ZoomLevel * ZoomFactor, MaxZoomLevel);
 
     [RelayCommand]
-    private void ZoomOut() => ZoomLevel = Math.Max(ZoomLevel / 1.2, 0.2);
+    private void ZoomOut() => ZoomLevel = Math.Max(ZoomLevel / ZoomFactor, MinZoomLevel);
 
     [RelayCommand]
     private void ResetView()
