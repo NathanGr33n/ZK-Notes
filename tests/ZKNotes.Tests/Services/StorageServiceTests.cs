@@ -7,17 +7,22 @@ namespace ZKNotes.Tests.Services;
 public class StorageServiceTests : IDisposable
 {
     private readonly string _testDir;
+    private readonly string _logsDir;
+    private readonly LoggerService _logger;
     private readonly StorageService _storage;
 
     public StorageServiceTests()
     {
         _testDir = Path.Combine(Path.GetTempPath(), $"zktest_{Guid.NewGuid():N}");
+        _logsDir = Path.Combine(_testDir, "logs");
         Directory.CreateDirectory(_testDir);
-        _storage = new StorageService(_testDir);
+        _logger = new LoggerService(_logsDir);
+        _storage = new StorageService(_testDir, _logger);
     }
 
     public void Dispose()
     {
+        _logger.Dispose();
         if (Directory.Exists(_testDir))
         {
             Directory.Delete(_testDir, recursive: true);
@@ -73,13 +78,18 @@ public class StorageServiceTests : IDisposable
         await _storage.GenerateNextIdAsync();
 
         // Create new instance with same directory
-        var newStorage = new StorageService(_testDir);
+        var newLogDir = Path.Combine(_testDir, "logs2");
+        var newLogger = new LoggerService(newLogDir);
+        var newStorage = new StorageService(_testDir, newLogger);
 
         // Act
         var id = await newStorage.GenerateNextIdAsync();
 
         // Assert
         id.Should().Be("ZK-0003");
+        
+        // Cleanup
+        newLogger.Dispose();
     }
 
     [Fact]
