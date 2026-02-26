@@ -114,36 +114,85 @@ public partial class NoteEditorViewModel : ObservableObject
             return;
         }
 
-        var currentTags = _currentNote.Tags ?? [];
-        var recentIds = _main.GetRecentNoteIds(12);
+        // When the user types just "[[", show a curated list:
+        // 1) Recently opened notes
+        // 2) Closely related notes (shared tags)
+        // 3) Fallback: recently edited notes
+        if (string.IsNullOrWhiteSpace(partialText))
+        {
+            var notesById = _main.Notes
+                .Where(n => !string.IsNullOrWhiteSpace(n.Id))
+                .GroupBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+            var currentTags = _currentNote.Tags ?? [];
+            var recentIds = _main.GetRecentNoteIds(20);
+
+            var recentNotes = recentIds
+                .Select(id => notesById.TryGetValue(id, out var n) ? n : null)
+                .Where(n => n is not null && !string.Equals(n!.Id, _currentNote.Id, StringComparison.OrdinalIgnoreCase))
+                .Cast<Note>();
+
+            var relatedNotes = _main.Notes
+                .Where(n => !string.Equals(n.Id, _currentNote.Id, StringComparison.OrdinalIgnoreCase))
+                .Select(n => new
+                {
+                    Note = n,
+                    SharedTags = (currentTags.Count > 0 && n.Tags is { Count: > 0 })
+                        ? n.Tags.Intersect(currentTags, StringComparer.OrdinalIgnoreCase).Count()
+                        : 0
+                })
+                .Where(x => x.SharedTags > 0)
+                .OrderByDescending(x => x.SharedTags)
+                .ThenByDescending(x => x.Note.LastEdit)
+                .Select(x => x.Note);
+
+            var fallbackRecentEdits = _main.Notes
+                .Where(n => !string.Equals(n.Id, _currentNote.Id, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(n => n.LastEdit);
+
+            var combined = recentNotes
+                .Concat(relatedNotes)
+                .Concat(fallbackRecentEdits)
+                .DistinctBy(n => n.Id, StringComparer.OrdinalIgnoreCase)
+                .Take(12)
+                .Select(n => new LinkSuggestion { Id = n.Id, Title = n.Title })
+                .ToList();
+
+            LinkSuggestions = new ObservableCollection<LinkSuggestion>(combined);
+            SelectedLinkSuggestion = LinkSuggestions.FirstOrDefault();
+            ShowLinkSuggestions = LinkSuggestions.Count > 0;
+            return;
+        }
+
+        // Non-empty query: score by ID/title match, then boost recents + shared tags.
+        var recentBoostIds = _main.GetRecentNoteIds(20);
+        var tags = _currentNote.Tags ?? [];
 
         var candidates = _main.Notes
-            .Where(n => n.Id != _currentNote.Id)
+            .Where(n => !string.Equals(n.Id, _currentNote.Id, StringComparison.OrdinalIgnoreCase))
             .Select(n =>
             {
                 var score = 0;
 
-                if (!string.IsNullOrWhiteSpace(partialText))
-                {
-                    if (n.Id.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 80;
-                    else if (n.Id.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 50;
+                if (n.Id.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 80;
+                else if (n.Id.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 50;
 
-                    if (n.Title.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 70;
-                    else if (n.Title.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 40;
-                }
+                if (n.Title.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 70;
+                else if (n.Title.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 40;
 
-                if (recentIds.Contains(n.Id, StringComparer.OrdinalIgnoreCase))
+                if (recentBoostIds.Contains(n.Id, StringComparer.OrdinalIgnoreCase))
                     score += 40;
 
-                if (currentTags.Count > 0 && n.Tags is { Count: > 0 })
+                if (tags.Count > 0 && n.Tags is { Count: > 0 })
                 {
-                    var shared = n.Tags.Intersect(currentTags, StringComparer.OrdinalIgnoreCase).Count();
+                    var shared = n.Tags.Intersect(tags, StringComparer.OrdinalIgnoreCase).Count();
                     score += shared * 10;
                 }
 
                 return new { Note = n, Score = score };
             })
-            .Where(x => string.IsNullOrWhiteSpace(partialText) || x.Score > 0)
+            .Where(x => x.Score > 0)
             .OrderByDescending(x => x.Score)
             .ThenByDescending(x => x.Note.LastEdit)
             .Take(12)
