@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -15,7 +16,8 @@ public enum NavigationPage
     Notes,
     Graph,
     Search,
-    Review
+    Review,
+    Insights
 }
 
 /// <summary>
@@ -23,8 +25,16 @@ public enum NavigationPage
 /// </summary>
 public partial class MainViewModel : ObservableObject
 {
+    private const int MaxRecentNotes = 25;
+    private const int MaxRecentTags = 50;
+
+    private readonly object _recentGate = new();
+    private readonly LinkedList<string> _recentNoteIds = new();
+    private readonly LinkedList<string> _recentTags = new();
+
     private readonly StorageService _storage;
     private readonly SearchService _search;
+    private readonly KnowledgeIndexService _index;
 
     [ObservableProperty]
     private NavigationPage _currentPage = NavigationPage.Notes;
@@ -36,6 +46,9 @@ public partial class MainViewModel : ObservableObject
     private Note? _selectedNote;
 
     [ObservableProperty]
+    private ObservableCollection<Note> _backlinks = [];
+
+    [ObservableProperty]
     private bool _isEditing;
 
     [ObservableProperty]
@@ -45,16 +58,19 @@ public partial class MainViewModel : ObservableObject
     public SearchViewModel Search { get; }
     public GraphViewModel Graph { get; }
     public ReviewViewModel Review { get; }
+    public InsightsViewModel Insights { get; }
 
-    public MainViewModel(StorageService storage, SearchService search)
+    public MainViewModel(StorageService storage, SearchService search, KnowledgeIndexService index)
     {
         _storage = storage;
         _search = search;
+        _index = index;
 
         Editor = new NoteEditorViewModel(storage, this);
         Search = new SearchViewModel(search, this);
         Graph = new GraphViewModel(this);
         Review = new ReviewViewModel(storage, this);
+        Insights = new InsightsViewModel(index, this);
     }
 
     public async Task InitializeAsync()
@@ -62,10 +78,15 @@ public partial class MainViewModel : ObservableObject
         StatusText = "Loading notes…";
         var notes = await _storage.LoadAllNotesAsync().ConfigureAwait(false);
 
+        // Build link/backlink index from disk-loaded notes (works even if frontmatter links are stale)
+        _index.Rebuild(notes);
+
         App.Current.Dispatcher.Invoke(() =>
         {
             Notes = new ObservableCollection<Note>(notes.OrderByDescending(n => n.LastEdit));
             StatusText = $"{Notes.Count} notes loaded";
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
         });
 
         await _search.RebuildIndexAsync(notes).ConfigureAwait(false);
@@ -90,13 +111,23 @@ public partial class MainViewModel : ObservableObject
             LastEdit = DateTime.Now
         };
 
-        App.Current.Dispatcher.Invoke(() =>
+        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Insert(0, note);
             SelectedNote = note;
             Editor.LoadNote(note);
             IsEditing = true;
             CurrentPage = NavigationPage.Notes;
+
+            return Notes.ToList();
+        });
+
+        _index.Rebuild(notesSnapshot);
+
+        App.Current.Dispatcher.Invoke(() =>
+        {
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
         });
     }
 
@@ -110,7 +141,7 @@ public partial class MainViewModel : ObservableObject
         await _storage.DeleteNoteAsync(note.Id).ConfigureAwait(false);
         _search.RemoveFromIndex(note.Id);
 
-        App.Current.Dispatcher.Invoke(() =>
+        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Remove(note);
             SelectedNote = Notes.FirstOrDefault();
@@ -120,6 +151,16 @@ public partial class MainViewModel : ObservableObject
                 IsEditing = false;
 
             StatusText = $"Deleted {note.Title}";
+
+            return Notes.ToList();
+        });
+
+        _index.Rebuild(notesSnapshot);
+
+        App.Current.Dispatcher.Invoke(() =>
+        {
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
         });
     }
 
@@ -132,12 +173,20 @@ public partial class MainViewModel : ObservableObject
         note.Tags = TagParser.ExtractTags(note.Content);
         note.Links = LinkParser.ExtractLinks(note.Content);
 
+        TrackRecentTags(note.Tags);
+
         await _storage.SaveNoteAsync(note).ConfigureAwait(false);
         _search.IndexNote(note);
+
+        // Rebuild knowledge index from a UI-thread snapshot of notes (ObservableCollection is not thread-safe)
+        var notesSnapshot = App.Current.Dispatcher.Invoke(() => Notes.ToList());
+        _index.Rebuild(notesSnapshot);
 
         App.Current.Dispatcher.Invoke(() =>
         {
             StatusText = $"Saved {note.Title}";
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
         });
     }
 
@@ -161,7 +210,7 @@ public partial class MainViewModel : ObservableObject
         await _storage.SaveNoteAsync(note).ConfigureAwait(false);
         _search.IndexNote(note);
 
-        App.Current.Dispatcher.Invoke(() =>
+        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Insert(0, note);
             SelectedNote = note;
@@ -169,16 +218,101 @@ public partial class MainViewModel : ObservableObject
             IsEditing = true;
             CurrentPage = NavigationPage.Notes;
             StatusText = $"Created {note.Title}";
+
+            return Notes.ToList();
+        });
+
+        _index.Rebuild(notesSnapshot);
+
+        App.Current.Dispatcher.Invoke(() =>
+        {
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
         });
 
         return id;
     }
 
+    partial void OnSelectedNoteChanged(Note? value)
+    {
+        RefreshBacklinks();
+    }
+
+    private void RefreshBacklinks()
+    {
+        if (SelectedNote is null)
+        {
+            Backlinks = [];
+            return;
+        }
+
+        var backlinks = _index.GetBacklinks(SelectedNote.Id);
+        Backlinks = new ObservableCollection<Note>(backlinks);
+    }
+
     public void SelectNote(Note note)
     {
+        TrackRecentNoteId(note.Id);
+
         SelectedNote = note;
         Editor.LoadNote(note);
         IsEditing = true;
         CurrentPage = NavigationPage.Notes;
+    }
+
+    public IReadOnlyList<string> GetRecentNoteIds(int max)
+    {
+        lock (_recentGate)
+        {
+            return _recentNoteIds.Take(max).ToList();
+        }
+    }
+
+    public IReadOnlyList<string> GetRecentTags(int max)
+    {
+        lock (_recentGate)
+        {
+            return _recentTags.Take(max).ToList();
+        }
+    }
+
+    private void TrackRecentNoteId(string id)
+    {
+        if (string.IsNullOrWhiteSpace(id))
+            return;
+
+        lock (_recentGate)
+        {
+            var existing = _recentNoteIds.Find(id);
+            if (existing is not null)
+                _recentNoteIds.Remove(existing);
+
+            _recentNoteIds.AddFirst(id);
+            while (_recentNoteIds.Count > MaxRecentNotes)
+                _recentNoteIds.RemoveLast();
+        }
+    }
+
+    private void TrackRecentTags(IEnumerable<string> tags)
+    {
+        lock (_recentGate)
+        {
+            foreach (var tag in tags)
+            {
+                if (string.IsNullOrWhiteSpace(tag))
+                    continue;
+
+                var normalized = tag.Trim().ToLowerInvariant();
+
+                var existing = _recentTags.Find(normalized);
+                if (existing is not null)
+                    _recentTags.Remove(existing);
+
+                _recentTags.AddFirst(normalized);
+            }
+
+            while (_recentTags.Count > MaxRecentTags)
+                _recentTags.RemoveLast();
+        }
     }
 }

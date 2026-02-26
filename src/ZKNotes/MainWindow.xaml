@@ -47,6 +47,9 @@
                     <Button Content="&#xE7BF;  Review" Tag="Review" Click="NavButton_Click"
                             Style="{StaticResource NavButtonStyle}"
                             Margin="4,2" FontSize="13"/>
+                    <Button Content="&#xE9D2;  Insights" Tag="Insights" Click="NavButton_Click"
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,2" FontSize="13"/>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -61,6 +64,8 @@
                 Visibility="{Binding CurrentPage, Converter={StaticResource PageVisConverter}, ConverterParameter=Search}"/>
             <views:ReviewView x:Name="ReviewPanel"
                 Visibility="{Binding CurrentPage, Converter={StaticResource PageVisConverter}, ConverterParameter=Review}"/>
+            <views:InsightsView x:Name="InsightsPanel"
+                Visibility="{Binding CurrentPage, Converter={StaticResource PageVisConverter}, ConverterParameter=Insights}"/>
         </Grid>
     </Grid>
 </Window>

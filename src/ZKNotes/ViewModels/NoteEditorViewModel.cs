@@ -11,9 +11,15 @@ using ZKNotes.Services;
 
 namespace ZKNotes.ViewModels;
 
+public sealed class LinkSuggestion
+{
+    public string Id { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
+}
+
 /// <summary>
 /// ViewModel for the note editor with Markdown editing and preview.
-/// Includes debounced auto-save and link suggestion support.
+/// Includes debounced auto-save and link/tag suggestion support.
 /// </summary>
 public partial class NoteEditorViewModel : ObservableObject
 {
@@ -31,10 +37,22 @@ public partial class NoteEditorViewModel : ObservableObject
     private string _tagsDisplay = string.Empty;
 
     [ObservableProperty]
-    private ObservableCollection<string> _linkSuggestions = [];
+    private ObservableCollection<LinkSuggestion> _linkSuggestions = [];
+
+    [ObservableProperty]
+    private LinkSuggestion? _selectedLinkSuggestion;
 
     [ObservableProperty]
     private bool _showLinkSuggestions;
+
+    [ObservableProperty]
+    private ObservableCollection<string> _tagSuggestions = [];
+
+    [ObservableProperty]
+    private string? _selectedTagSuggestion;
+
+    [ObservableProperty]
+    private bool _showTagSuggestions;
 
     private Note? _currentNote;
 
@@ -84,25 +102,98 @@ public partial class NoteEditorViewModel : ObservableObject
 
     /// <summary>
     /// Updates link suggestions based on partial [[input.
+    /// Suggestions return stable IDs and will be inserted as [[id|Title]].
     /// </summary>
     public void UpdateLinkSuggestions(string partialText)
     {
-        if (string.IsNullOrWhiteSpace(partialText))
+        partialText ??= string.Empty;
+
+        if (_currentNote is null)
         {
             ShowLinkSuggestions = false;
             return;
         }
 
-        var suggestions = _main.Notes
-            .Where(n => n.Id != _currentNote?.Id)
-            .Where(n => n.Title.Contains(partialText, StringComparison.OrdinalIgnoreCase)
-                        || n.Id.Contains(partialText, StringComparison.OrdinalIgnoreCase))
-            .Take(8)
-            .Select(n => n.Title)
+        var currentTags = _currentNote.Tags ?? [];
+        var recentIds = _main.GetRecentNoteIds(12);
+
+        var candidates = _main.Notes
+            .Where(n => n.Id != _currentNote.Id)
+            .Select(n =>
+            {
+                var score = 0;
+
+                if (!string.IsNullOrWhiteSpace(partialText))
+                {
+                    if (n.Id.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 80;
+                    else if (n.Id.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 50;
+
+                    if (n.Title.StartsWith(partialText, StringComparison.OrdinalIgnoreCase)) score += 70;
+                    else if (n.Title.Contains(partialText, StringComparison.OrdinalIgnoreCase)) score += 40;
+                }
+
+                if (recentIds.Contains(n.Id, StringComparer.OrdinalIgnoreCase))
+                    score += 40;
+
+                if (currentTags.Count > 0 && n.Tags is { Count: > 0 })
+                {
+                    var shared = n.Tags.Intersect(currentTags, StringComparer.OrdinalIgnoreCase).Count();
+                    score += shared * 10;
+                }
+
+                return new { Note = n, Score = score };
+            })
+            .Where(x => string.IsNullOrWhiteSpace(partialText) || x.Score > 0)
+            .OrderByDescending(x => x.Score)
+            .ThenByDescending(x => x.Note.LastEdit)
+            .Take(12)
+            .Select(x => new LinkSuggestion { Id = x.Note.Id, Title = x.Note.Title })
             .ToList();
 
-        LinkSuggestions = new ObservableCollection<string>(suggestions);
-        ShowLinkSuggestions = suggestions.Count > 0;
+        LinkSuggestions = new ObservableCollection<LinkSuggestion>(candidates);
+        SelectedLinkSuggestion = LinkSuggestions.FirstOrDefault();
+        ShowLinkSuggestions = LinkSuggestions.Count > 0;
+    }
+
+    /// <summary>
+    /// Updates tag suggestions based on partial #input.
+    /// </summary>
+    public void UpdateTagSuggestions(string partialText)
+    {
+        partialText ??= string.Empty;
+
+        var recent = _main.GetRecentTags(25);
+
+        IEnumerable<string> tagStream;
+        if (string.IsNullOrWhiteSpace(partialText))
+        {
+            tagStream = recent;
+        }
+        else
+        {
+            var fromRecent = recent.Where(t => t.StartsWith(partialText, StringComparison.OrdinalIgnoreCase));
+            var all = _main.Notes.SelectMany(n => n.Tags).Distinct(StringComparer.OrdinalIgnoreCase);
+            var fromAll = all.Where(t => t.StartsWith(partialText, StringComparison.OrdinalIgnoreCase));
+
+            tagStream = fromRecent.Concat(fromAll);
+        }
+
+        var suggestions = tagStream
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToList();
+
+        TagSuggestions = new ObservableCollection<string>(suggestions);
+        SelectedTagSuggestion = TagSuggestions.FirstOrDefault();
+        ShowTagSuggestions = TagSuggestions.Count > 0;
+    }
+
+    public void HideSuggestions()
+    {
+        ShowLinkSuggestions = false;
+        ShowTagSuggestions = false;
     }
 
     /// <summary>

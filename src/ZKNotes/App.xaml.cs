@@ -24,6 +24,7 @@ public partial class App : Application
         services.AddSingleton(config);
         services.AddSingleton(new StorageService(config.NotesDirectory));
         services.AddSingleton(sp => new SearchService(config.NotesDirectory));
+        services.AddSingleton<KnowledgeIndexService>();
         services.AddSingleton<MainViewModel>();
 
         _serviceProvider = services.BuildServiceProvider();

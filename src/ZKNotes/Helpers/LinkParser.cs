@@ -24,9 +24,14 @@ public static partial class LinkParser
         var links = new List<string>();
         foreach (Match match in LinkPattern().Matches(content))
         {
+            // Supports [[target]] and [[target|alias]]
             var linkText = match.Groups[1].Value.Trim();
-            if (linkText.Length > 0)
-                links.Add(linkText);
+            if (linkText.Length == 0)
+                continue;
+
+            var target = linkText.Split('|', 2)[0].Trim();
+            if (target.Length > 0)
+                links.Add(target);
         }
 
         return links;
@@ -42,8 +47,16 @@ public static partial class LinkParser
 
         return LinkPattern().Replace(content, m =>
         {
+            // Supports [[target]] and [[target|alias]]
             var linkText = m.Groups[1].Value.Trim();
-            return $"<a href=\"zk://note/{System.Net.WebUtility.UrlEncode(linkText)}\" class=\"note-link\">{System.Net.WebUtility.HtmlEncode(linkText)}</a>";
+            if (linkText.Length == 0)
+                return string.Empty;
+
+            var parts = linkText.Split('|', 2);
+            var target = parts[0].Trim();
+            var display = (parts.Length > 1 ? parts[1] : parts[0]).Trim();
+
+            return $"<a href=\"zk://note/{System.Net.WebUtility.UrlEncode(target)}\" class=\"note-link\">{System.Net.WebUtility.HtmlEncode(display)}</a>";
         });
     }
 }
