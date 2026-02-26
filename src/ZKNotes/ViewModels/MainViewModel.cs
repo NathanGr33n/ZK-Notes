@@ -17,6 +17,7 @@ public enum NavigationPage
     Graph,
     Search,
     Review,
+    Tags,
     Insights
 }
 
@@ -58,6 +59,7 @@ public partial class MainViewModel : ObservableObject
     public SearchViewModel Search { get; }
     public GraphViewModel Graph { get; }
     public ReviewViewModel Review { get; }
+    public TagManagementViewModel TagManagement { get; }
     public InsightsViewModel Insights { get; }
 
     public MainViewModel(StorageService storage, SearchService search, KnowledgeIndexService index)
@@ -70,6 +72,7 @@ public partial class MainViewModel : ObservableObject
         Search = new SearchViewModel(search, this);
         Graph = new GraphViewModel(this);
         Review = new ReviewViewModel(storage, this);
+        TagManagement = new TagManagementViewModel(this);
         Insights = new InsightsViewModel(index, this);
     }
 
@@ -87,6 +90,7 @@ public partial class MainViewModel : ObservableObject
             StatusText = $"{Notes.Count} notes loaded";
             RefreshBacklinks();
             Insights.RefreshOrphans();
+            TagManagement.Refresh();
         });
 
         await _search.RebuildIndexAsync(notes).ConfigureAwait(false);
@@ -169,6 +173,8 @@ public partial class MainViewModel : ObservableObject
     /// </summary>
     public async Task OnNoteSavedAsync(Note note)
     {
+        ArgumentNullException.ThrowIfNull(note);
+
         // Parse tags and links from content
         note.Tags = TagParser.ExtractTags(note.Content);
         note.Links = LinkParser.ExtractLinks(note.Content);
@@ -187,6 +193,41 @@ public partial class MainViewModel : ObservableObject
             StatusText = $"Saved {note.Title}";
             RefreshBacklinks();
             Insights.RefreshOrphans();
+            Search.RefreshTags();
+        });
+    }
+
+    /// <summary>
+    /// Saves and re-indexes many notes in a single pass.
+    /// Used for bulk operations (tag rename/merge, templates, migrations, etc.).
+    /// </summary>
+    public async Task SaveNotesBatchAsync(System.Collections.Generic.IReadOnlyList<Note> notes, string statusText)
+    {
+        if (notes is null || notes.Count == 0)
+            return;
+
+        foreach (var note in notes)
+        {
+            // Parse tags and links from content
+            note.Tags = TagParser.ExtractTags(note.Content);
+            note.Links = LinkParser.ExtractLinks(note.Content);
+
+            TrackRecentTags(note.Tags);
+
+            await _storage.SaveNoteAsync(note).ConfigureAwait(false);
+            _search.IndexNote(note);
+        }
+
+        // Rebuild knowledge index once for the full batch
+        var notesSnapshot = App.Current.Dispatcher.Invoke(() => Notes.ToList());
+        _index.Rebuild(notesSnapshot);
+
+        App.Current.Dispatcher.Invoke(() =>
+        {
+            StatusText = statusText;
+            RefreshBacklinks();
+            Insights.RefreshOrphans();
+            Search.RefreshTags();
         });
     }
 
