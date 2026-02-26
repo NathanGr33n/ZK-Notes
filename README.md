@@ -32,6 +32,24 @@ dotnet run --project src/ZKNotes
 
 Requires .NET 9 SDK and WebView2 Runtime (included in Windows 11 / Edge).
 
+## Testing
+
+```bash
+# Run all tests
+dotnet test
+
+# Run with detailed output
+dotnet test --verbosity normal
+```
+
+The test suite includes 59 tests covering:
+- Link parsing (`[[wiki-links]]`)
+- Tag extraction (`#hashtags`)
+- Note storage and persistence
+- YAML frontmatter serialization
+
+See [tests/ZKNotes.Tests/README.md](tests/ZKNotes.Tests/README.md) for details.
+
 ## Project Structure
 
 ```
