@@ -39,6 +39,7 @@ public partial class MainViewModel : ObservableObject
     private readonly TemplateService _templates;
     private readonly KnowledgeIndexService _index;
     private readonly BackupService _backup;
+    private readonly LoggerService _logger;
 
     private CancellationTokenSource? _templatesRefreshCts;
 
@@ -111,13 +112,14 @@ public partial class MainViewModel : ObservableObject
     public TagManagementViewModel TagManagement { get; }
     public InsightsViewModel Insights { get; }
 
-    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index, BackupService backup)
+    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index, BackupService backup, LoggerService logger)
     {
         _storage = storage;
         _search = search;
         _templates = templates;
         _index = index;
         _backup = backup;
+        _logger = logger;
 
         _templates.TemplatesChanged += (_, _) => DebounceRefreshTemplatesList();
 
@@ -131,25 +133,34 @@ public partial class MainViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        StatusText = "Loading notes…";
-        var notes = await _storage.LoadAllNotesAsync().ConfigureAwait(false);
-
-        // Build link/backlink index from disk-loaded notes (works even if frontmatter links are stale)
-        _index.Rebuild(notes);
-
-        App.Current.Dispatcher.Invoke(() =>
+        using (PerformanceTimer.Start(_logger, "Application initialization", 2000))
         {
-            Notes = new ObservableCollection<Note>(notes.OrderByDescending(n => n.LastEdit));
+            StatusText = "Loading notes…";
+            var notes = await _storage.LoadAllNotesAsync().ConfigureAwait(false);
 
-            StatusText = $"{Notes.Count} notes loaded";
-            RefreshBacklinks();
-            Insights.RefreshOrphans();
-            TagManagement.Refresh();
-        });
+            // Build link/backlink index from disk-loaded notes (works even if frontmatter links are stale)
+            using (PerformanceTimer.Start(_logger, "Knowledge index rebuild", 500))
+            {
+                _index.Rebuild(notes);
+            }
 
-        RefreshTemplatesList();
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                Notes = new ObservableCollection<Note>(notes.OrderByDescending(n => n.LastEdit));
 
-        await _search.RebuildIndexAsync(notes).ConfigureAwait(false);
+                StatusText = $"{Notes.Count} notes loaded";
+                RefreshBacklinks();
+                Insights.RefreshOrphans();
+                TagManagement.Refresh();
+            });
+
+            RefreshTemplatesList();
+
+            using (PerformanceTimer.Start(_logger, "Search index rebuild", 1000))
+            {
+                await _search.RebuildIndexAsync(notes).ConfigureAwait(false);
+            }
+        }
     }
 
     [RelayCommand]
@@ -293,7 +304,7 @@ public partial class MainViewModel : ObservableObject
         await _storage.SaveNoteAsync(note).ConfigureAwait(false);
         _search.IndexNote(note);
 
-        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
+        App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Insert(0, note);
             SelectedNote = note;
@@ -301,11 +312,10 @@ public partial class MainViewModel : ObservableObject
             IsEditing = true;
             CurrentPage = NavigationPage.Notes;
             StatusText = $"Created {note.Title}";
-
-            return Notes.ToList();
         });
 
-        _index.Rebuild(notesSnapshot);
+        // Incremental update instead of full rebuild
+        _index.UpdateNote(note);
 
         App.Current.Dispatcher.Invoke(() =>
         {
@@ -330,7 +340,7 @@ public partial class MainViewModel : ObservableObject
         await _storage.DeleteNoteAsync(note.Id).ConfigureAwait(false);
         _search.RemoveFromIndex(note.Id);
 
-        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
+        App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Remove(note);
             SelectedNote = Notes.FirstOrDefault();
@@ -340,11 +350,10 @@ public partial class MainViewModel : ObservableObject
                 IsEditing = false;
 
             StatusText = $"Deleted {note.Title}";
-
-            return Notes.ToList();
         });
 
-        _index.Rebuild(notesSnapshot);
+        // Incremental removal instead of full rebuild
+        _index.RemoveNote(note.Id);
 
         App.Current.Dispatcher.Invoke(() =>
         {
@@ -369,9 +378,8 @@ public partial class MainViewModel : ObservableObject
         await _storage.SaveNoteAsync(note).ConfigureAwait(false);
         _search.IndexNote(note);
 
-        // Rebuild knowledge index from a UI-thread snapshot of notes (ObservableCollection is not thread-safe)
-        var notesSnapshot = App.Current.Dispatcher.Invoke(() => Notes.ToList());
-        _index.Rebuild(notesSnapshot);
+        // Incremental update instead of full rebuild
+        _index.UpdateNote(note);
 
         App.Current.Dispatcher.Invoke(() =>
         {
@@ -391,21 +399,24 @@ public partial class MainViewModel : ObservableObject
         if (notes is null || notes.Count == 0)
             return;
 
-        foreach (var note in notes)
+        using (PerformanceTimer.Start(_logger, $"Batch save {notes.Count} notes", 2000))
         {
-            // Parse tags and links from content
-            note.Tags = TagParser.ExtractTags(note.Content);
-            note.Links = LinkParser.ExtractLinks(note.Content);
+            foreach (var note in notes)
+            {
+                // Parse tags and links from content
+                note.Tags = TagParser.ExtractTags(note.Content);
+                note.Links = LinkParser.ExtractLinks(note.Content);
 
-            TrackRecentTags(note.Tags);
+                TrackRecentTags(note.Tags);
 
-            await _storage.SaveNoteAsync(note).ConfigureAwait(false);
-            _search.IndexNote(note);
+                await _storage.SaveNoteAsync(note).ConfigureAwait(false);
+                _search.IndexNote(note);
+            }
+
+            // Rebuild knowledge index once for the full batch
+            var notesSnapshot = App.Current.Dispatcher.Invoke(() => Notes.ToList());
+            _index.Rebuild(notesSnapshot);
         }
-
-        // Rebuild knowledge index once for the full batch
-        var notesSnapshot = App.Current.Dispatcher.Invoke(() => Notes.ToList());
-        _index.Rebuild(notesSnapshot);
 
         App.Current.Dispatcher.Invoke(() =>
         {
@@ -436,7 +447,7 @@ public partial class MainViewModel : ObservableObject
         await _storage.SaveNoteAsync(note).ConfigureAwait(false);
         _search.IndexNote(note);
 
-        var notesSnapshot = App.Current.Dispatcher.Invoke(() =>
+        App.Current.Dispatcher.Invoke(() =>
         {
             Notes.Insert(0, note);
             SelectedNote = note;
@@ -444,11 +455,10 @@ public partial class MainViewModel : ObservableObject
             IsEditing = true;
             CurrentPage = NavigationPage.Notes;
             StatusText = $"Created {note.Title}";
-
-            return Notes.ToList();
         });
 
-        _index.Rebuild(notesSnapshot);
+        // Incremental update instead of full rebuild
+        _index.UpdateNote(note);
 
         App.Current.Dispatcher.Invoke(() =>
         {
