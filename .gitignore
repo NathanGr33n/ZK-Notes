@@ -99,3 +99,6 @@ _pkginfo.txt
 ## Application logs
 _logs/
 *.log
+
+## Application backups
+_backups/
