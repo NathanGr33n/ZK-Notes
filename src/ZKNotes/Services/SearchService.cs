@@ -14,13 +14,26 @@ namespace ZKNotes.Services;
 public sealed class SearchService : IDisposable
 {
     private readonly SqliteConnection _db;
+    private readonly LoggerService _logger;
 
-    public SearchService(string notesDirectory)
+    public SearchService(string notesDirectory, LoggerService logger)
     {
+        _logger = logger;
         var dbPath = Path.Combine(notesDirectory, ".zk-search.db");
-        _db = new SqliteConnection($"Data Source={dbPath}");
-        _db.Open();
-        InitializeSchema();
+        _logger.Information("Initializing SearchService with database: {DatabasePath}", dbPath);
+        
+        try
+        {
+            _db = new SqliteConnection($"Data Source={dbPath}");
+            _db.Open();
+            InitializeSchema();
+            _logger.Information("SearchService initialized successfully");
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to initialize SearchService");
+            throw;
+        }
     }
 
     private void InitializeSchema()
@@ -42,19 +55,30 @@ public sealed class SearchService : IDisposable
     /// </summary>
     public async Task RebuildIndexAsync(List<Note> notes)
     {
+        _logger.Information("Rebuilding search index with {NoteCount} notes", notes.Count);
+        
         await Task.Run(() =>
         {
-            using var transaction = _db.BeginTransaction();
-            using var deleteCmd = _db.CreateCommand();
-            deleteCmd.CommandText = "DELETE FROM notes_fts;";
-            deleteCmd.ExecuteNonQuery();
-
-            foreach (var note in notes)
+            try
             {
-                InsertNote(note);
-            }
+                using var transaction = _db.BeginTransaction();
+                using var deleteCmd = _db.CreateCommand();
+                deleteCmd.CommandText = "DELETE FROM notes_fts;";
+                deleteCmd.ExecuteNonQuery();
 
-            transaction.Commit();
+                foreach (var note in notes)
+                {
+                    InsertNote(note);
+                }
+
+                transaction.Commit();
+                _logger.Information("Search index rebuilt successfully");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to rebuild search index");
+                throw;
+            }
         }).ConfigureAwait(false);
     }
 
@@ -63,8 +87,17 @@ public sealed class SearchService : IDisposable
     /// </summary>
     public void IndexNote(Note note)
     {
-        RemoveFromIndex(note.Id);
-        InsertNote(note);
+        try
+        {
+            RemoveFromIndex(note.Id);
+            InsertNote(note);
+            _logger.Debug("Indexed note: {NoteId} - {NoteTitle}", note.Id, note.Title);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to index note: {NoteId} - {NoteTitle}", note.Id, note.Title);
+            throw;
+        }
     }
 
     /// <summary>
@@ -86,6 +119,7 @@ public sealed class SearchService : IDisposable
         if (string.IsNullOrWhiteSpace(query))
             return [];
 
+        _logger.Debug("Searching for: {Query}", query);
         var results = new List<string>();
 
         // Sanitize query for FTS5: escape special chars and add prefix matching
@@ -107,10 +141,11 @@ public sealed class SearchService : IDisposable
             {
                 results.Add(reader.GetString(0));
             }
+            _logger.Debug("Search found {ResultCount} results for query: {Query}", results.Count, query);
         }
-        catch (SqliteException)
+        catch (SqliteException ex)
         {
-            // Malformed query — return empty results
+            _logger.Warning(ex, "Malformed search query: {Query}", query);
         }
 
         return results;
@@ -124,6 +159,7 @@ public sealed class SearchService : IDisposable
         if (string.IsNullOrWhiteSpace(tag))
             return [];
 
+        _logger.Debug("Searching by tag: {Tag}", tag);
         var results = new List<string>();
         using var cmd = _db.CreateCommand();
         cmd.CommandText = """
@@ -141,10 +177,11 @@ public sealed class SearchService : IDisposable
             {
                 results.Add(reader.GetString(0));
             }
+            _logger.Debug("Tag search found {ResultCount} results for tag: {Tag}", results.Count, tag);
         }
-        catch (SqliteException)
+        catch (SqliteException ex)
         {
-            // Malformed query
+            _logger.Warning(ex, "Failed to search by tag: {Tag}", tag);
         }
 
         return results;
@@ -190,6 +227,7 @@ public sealed class SearchService : IDisposable
 
     public void Dispose()
     {
+        _logger.Information("Disposing SearchService");
         _db.Dispose();
     }
 }

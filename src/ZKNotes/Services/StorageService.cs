@@ -23,6 +23,7 @@ public sealed class StorageService
     private const string CounterFileName = ".zk-counter";
 
     private readonly string _notesDir;
+    private readonly LoggerService _logger;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private readonly ISerializer _yamlSerializer = new SerializerBuilder()
@@ -35,10 +36,12 @@ public sealed class StorageService
         .IgnoreUnmatchedProperties()
         .Build();
 
-    public StorageService(string notesDirectory)
+    public StorageService(string notesDirectory, LoggerService logger)
     {
         _notesDir = notesDirectory;
+        _logger = logger;
         Directory.CreateDirectory(_notesDir);
+        _logger.Information("StorageService initialized with directory: {NotesDirectory}", _notesDir);
     }
 
     public string NotesDirectory => _notesDir;
@@ -65,7 +68,14 @@ public sealed class StorageService
             await File.WriteAllTextAsync(counterPath, counter.ToString(CultureInfo.InvariantCulture))
                 .ConfigureAwait(false);
 
-            return $"{IdPrefix}{counter:D4}";
+            var id = $"{IdPrefix}{counter:D4}";
+            _logger.Debug("Generated new note ID: {NoteId}", id);
+            return id;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to generate note ID");
+            throw;
         }
         finally
         {
@@ -83,6 +93,7 @@ public sealed class StorageService
         if (string.IsNullOrWhiteSpace(note.Id))
             throw new ArgumentException("Note must have an ID.", nameof(note));
 
+        _logger.Debug("Saving note: {NoteId} - {NoteTitle}", note.Id, note.Title);
         note.LastEdit = DateTime.Now;
 
         var metadata = new NoteMetadata
@@ -112,6 +123,12 @@ public sealed class StorageService
         try
         {
             await File.WriteAllTextAsync(filePath, sb.ToString(), Encoding.UTF8).ConfigureAwait(false);
+            _logger.Debug("Note saved successfully: {NoteId}", note.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Failed to save note: {NoteId} - {NoteTitle}", note.Id, note.Title);
+            throw;
         }
         finally
         {
@@ -137,11 +154,16 @@ public sealed class StorageService
     /// </summary>
     public async Task<List<Note>> LoadAllNotesAsync()
     {
+        _logger.Information("Loading all notes from directory: {NotesDirectory}", _notesDir);
         var notes = new List<Note>();
         if (!Directory.Exists(_notesDir))
+        {
+            _logger.Warning("Notes directory does not exist: {NotesDirectory}", _notesDir);
             return notes;
+        }
 
         var files = Directory.GetFiles(_notesDir, "*.md", SearchOption.TopDirectoryOnly);
+        _logger.Debug("Found {FileCount} markdown files", files.Length);
 
         foreach (var file in files)
         {
@@ -153,12 +175,13 @@ public sealed class StorageService
                 if (note is not null)
                     notes.Add(note);
             }
-            catch
+            catch (Exception ex)
             {
-                // Skip malformed files
+                _logger.Warning(ex, "Failed to load note file: {FilePath}", file);
             }
         }
 
+        _logger.Information("Loaded {NoteCount} notes successfully", notes.Count);
         return notes;
     }
 
@@ -167,9 +190,25 @@ public sealed class StorageService
     /// </summary>
     public Task DeleteNoteAsync(string id)
     {
+        _logger.Information("Deleting note: {NoteId}", id);
         var filePath = GetFilePath(id);
         if (File.Exists(filePath))
-            File.Delete(filePath);
+        {
+            try
+            {
+                File.Delete(filePath);
+                _logger.Debug("Note deleted successfully: {NoteId}", id);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to delete note: {NoteId}", id);
+                throw;
+            }
+        }
+        else
+        {
+            _logger.Warning("Attempted to delete non-existent note: {NoteId}", id);
+        }
         return Task.CompletedTask;
     }
 
