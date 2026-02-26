@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -38,6 +39,8 @@ public partial class MainViewModel : ObservableObject
     private readonly TemplateService _templates;
     private readonly KnowledgeIndexService _index;
 
+    private CancellationTokenSource? _templatesRefreshCts;
+
     [ObservableProperty]
     private NavigationPage _currentPage = NavigationPage.Notes;
 
@@ -62,6 +65,44 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? _selectedTemplate;
 
+    private void DebounceRefreshTemplatesList()
+    {
+        _templatesRefreshCts?.Cancel();
+        _templatesRefreshCts = new CancellationTokenSource();
+        var token = _templatesRefreshCts.Token;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(250, token).ConfigureAwait(false);
+                if (!token.IsCancellationRequested)
+                    RefreshTemplatesList();
+            }
+            catch (OperationCanceledException)
+            {
+                // expected
+            }
+        }, token);
+    }
+
+    private void RefreshTemplatesList()
+    {
+        var templateNames = _templates.ListTemplateNames();
+
+        App.Current.Dispatcher.Invoke(() =>
+        {
+            var current = SelectedTemplate;
+
+            TemplatesList = new ObservableCollection<string>(templateNames);
+
+            if (!string.IsNullOrWhiteSpace(current) && TemplatesList.Contains(current))
+                SelectedTemplate = current;
+            else
+                SelectedTemplate = TemplatesList.FirstOrDefault();
+        });
+    }
+
     public NoteEditorViewModel Editor { get; }
     public SearchViewModel Search { get; }
     public GraphViewModel Graph { get; }
@@ -75,6 +116,8 @@ public partial class MainViewModel : ObservableObject
         _search = search;
         _templates = templates;
         _index = index;
+
+        _templates.TemplatesChanged += (_, _) => DebounceRefreshTemplatesList();
 
         Editor = new NoteEditorViewModel(storage, this);
         Search = new SearchViewModel(search, this);
@@ -92,19 +135,17 @@ public partial class MainViewModel : ObservableObject
         // Build link/backlink index from disk-loaded notes (works even if frontmatter links are stale)
         _index.Rebuild(notes);
 
-        var templateNames = _templates.ListTemplateNames();
-
         App.Current.Dispatcher.Invoke(() =>
         {
             Notes = new ObservableCollection<Note>(notes.OrderByDescending(n => n.LastEdit));
-            TemplatesList = new ObservableCollection<string>(templateNames);
-            SelectedTemplate = TemplatesList.FirstOrDefault();
 
             StatusText = $"{Notes.Count} notes loaded";
             RefreshBacklinks();
             Insights.RefreshOrphans();
             TagManagement.Refresh();
         });
+
+        RefreshTemplatesList();
 
         await _search.RebuildIndexAsync(notes).ConfigureAwait(false);
     }
@@ -116,11 +157,17 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void RefreshTemplates()
+    {
+        RefreshTemplatesList();
+    }
+
+    [RelayCommand]
     private async Task CreateNoteAsync()
     {
         await CreateNoteInternalAsync(
-            title: "Untitled Note",
-            content: string.Empty,
+            titleTemplate: "Untitled Note",
+            bodyTemplate: string.Empty,
             type: NoteType.Standard,
             template: null,
             linkToCurrent: false)
@@ -131,8 +178,8 @@ public partial class MainViewModel : ObservableObject
     private async Task CreateFleetingNoteAsync()
     {
         await CreateNoteInternalAsync(
-            title: $"Fleeting {DateTime.Now:yyyy-MM-dd HHmm}",
-            content: string.Empty,
+            titleTemplate: "Fleeting {{datetime}}",
+            bodyTemplate: string.Empty,
             type: NoteType.Fleeting,
             template: null,
             linkToCurrent: true)
@@ -142,18 +189,30 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task CreateJournalNoteAsync()
     {
-        var templateName = "journal";
-        var title = $"Journal {DateTime.Now:yyyy-MM-dd}";
+        const string templateName = "journal";
 
-        var content = _templates.TemplateExists(templateName)
-            ? _templates.LoadTemplate(templateName)
-            : "# {{title}}\n\n";
+        if (_templates.TemplateExists(templateName))
+        {
+            var def = _templates.LoadTemplateDefinition(templateName);
+            var titleTemplate = def.TitleTemplate ?? "Journal {{date}}";
+            var type = def.DefaultType == NoteType.Standard ? NoteType.Journal : def.DefaultType;
+
+            await CreateNoteInternalAsync(
+                titleTemplate: titleTemplate,
+                bodyTemplate: def.BodyTemplate,
+                type: type,
+                template: templateName,
+                linkToCurrent: false)
+                .ConfigureAwait(false);
+
+            return;
+        }
 
         await CreateNoteInternalAsync(
-            title: title,
-            content: content,
+            titleTemplate: "Journal {{date}}",
+            bodyTemplate: "# {{title}}\n\n",
             type: NoteType.Journal,
-            template: _templates.TemplateExists(templateName) ? templateName : null,
+            template: null,
             linkToCurrent: false)
             .ConfigureAwait(false);
     }
@@ -168,39 +227,58 @@ public partial class MainViewModel : ObservableObject
         }
 
         var templateName = SelectedTemplate;
-        var title = templateName;
-        var content = _templates.LoadTemplate(templateName);
+        var def = _templates.LoadTemplateDefinition(templateName);
 
         await CreateNoteInternalAsync(
-            title: title,
-            content: content,
-            type: NoteType.Standard,
-            template: templateName,
+            titleTemplate: def.TitleTemplate ?? def.Name,
+            bodyTemplate: def.BodyTemplate,
+            type: def.DefaultType,
+            template: def.Name,
             linkToCurrent: false)
             .ConfigureAwait(false);
     }
 
-    private async Task CreateNoteInternalAsync(string title, string content, NoteType type, string? template, bool linkToCurrent)
+    private async Task CreateNoteInternalAsync(string titleTemplate, string bodyTemplate, NoteType type, string? template, bool linkToCurrent)
     {
         var id = await _storage.GenerateNextIdAsync().ConfigureAwait(false);
         var now = DateTime.Now;
 
-        var templateVars = TemplateService.DefaultVariables(id, title, now);
-        var resolvedContent = _templates.ApplyVariables(content ?? string.Empty, templateVars);
+        var current = App.Current.Dispatcher.Invoke(() => SelectedNote);
+        var currentLink = current is null ? string.Empty : $"[[{current.Id}|{current.Title}]]";
 
-        if (linkToCurrent)
+        var baseVars = new Dictionary<string, string>(TemplateService.BaseVariables(id, now), StringComparer.OrdinalIgnoreCase)
         {
-            var current = App.Current.Dispatcher.Invoke(() => SelectedNote);
-            if (current is not null)
-            {
-                resolvedContent = $"[[{current.Id}|{current.Title}]]\n\n" + resolvedContent;
-            }
+            ["template"] = template ?? string.Empty,
+            ["note_type"] = type.ToString().ToLowerInvariant(),
+            ["current_note_id"] = current?.Id ?? string.Empty,
+            ["current_note_title"] = current?.Title ?? string.Empty,
+            ["current_note_link"] = currentLink
+        };
+
+        var resolvedTitle = _templates.ApplyVariables(titleTemplate ?? string.Empty, baseVars).Trim();
+        if (string.IsNullOrWhiteSpace(resolvedTitle))
+            resolvedTitle = "Untitled";
+
+        var vars = new Dictionary<string, string>(TemplateService.DefaultVariables(id, resolvedTitle, now), StringComparer.OrdinalIgnoreCase)
+        {
+            ["template"] = template ?? string.Empty,
+            ["note_type"] = type.ToString().ToLowerInvariant(),
+            ["current_note_id"] = current?.Id ?? string.Empty,
+            ["current_note_title"] = current?.Title ?? string.Empty,
+            ["current_note_link"] = currentLink
+        };
+
+        var resolvedContent = _templates.ApplyVariables(bodyTemplate ?? string.Empty, vars);
+
+        if (linkToCurrent && !string.IsNullOrWhiteSpace(currentLink))
+        {
+            resolvedContent = currentLink + "\n\n" + resolvedContent;
         }
 
         var note = new Note
         {
             Id = id,
-            Title = title,
+            Title = resolvedTitle,
             Content = resolvedContent,
             Type = type,
             Template = template,
