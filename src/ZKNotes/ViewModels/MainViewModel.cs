@@ -38,6 +38,7 @@ public partial class MainViewModel : ObservableObject
     private readonly SearchService _search;
     private readonly TemplateService _templates;
     private readonly KnowledgeIndexService _index;
+    private readonly BackupService _backup;
 
     private CancellationTokenSource? _templatesRefreshCts;
 
@@ -110,12 +111,13 @@ public partial class MainViewModel : ObservableObject
     public TagManagementViewModel TagManagement { get; }
     public InsightsViewModel Insights { get; }
 
-    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index)
+    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index, BackupService backup)
     {
         _storage = storage;
         _search = search;
         _templates = templates;
         _index = index;
+        _backup = backup;
 
         _templates.TemplatesChanged += (_, _) => DebounceRefreshTemplatesList();
 
@@ -321,6 +323,10 @@ public partial class MainViewModel : ObservableObject
             return;
 
         var note = SelectedNote;
+        
+        // Create automatic backup before deletion
+        await _backup.CreateAutoBackupAsync($"Before deleting note: {note.Title}").ConfigureAwait(false);
+        
         await _storage.DeleteNoteAsync(note.Id).ConfigureAwait(false);
         _search.RemoveFromIndex(note.Id);
 

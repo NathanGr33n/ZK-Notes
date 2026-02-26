@@ -39,6 +39,7 @@ public partial class App : Application
         services.AddSingleton(new StorageService(config.NotesDirectory, _logger));
         services.AddSingleton(sp => new SearchService(config.NotesDirectory, sp.GetRequiredService<LoggerService>()));
         services.AddSingleton(sp => new TemplateService(config.NotesDirectory, config.TemplatesSubfolder));
+        services.AddSingleton(sp => new BackupService(config.NotesDirectory, sp.GetRequiredService<LoggerService>()));
         services.AddSingleton<KnowledgeIndexService>();
         services.AddSingleton<MainViewModel>();
 
