@@ -95,3 +95,7 @@ _pkginfo.txt
 *.appx
 *.appxbundle
 *.appxupload
+
+## Application logs
+_logs/
+*.log
