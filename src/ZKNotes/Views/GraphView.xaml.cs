@@ -37,12 +37,12 @@ public partial class GraphView : UserControl
 
     private GraphViewModel? GetVm() => (DataContext as MainViewModel)?.Graph;
 
-    private void RefreshGraph()
+    private async void RefreshGraph()
     {
         var vm = GetVm();
         if (vm is null) return;
 
-        vm.BuildGraph();
+        await vm.BuildGraphCommand.ExecuteAsync(null);
         RenderGraph();
     }
 

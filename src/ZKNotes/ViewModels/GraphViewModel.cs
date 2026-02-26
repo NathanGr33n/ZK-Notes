@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -34,6 +36,7 @@ public partial class GraphViewModel : ObservableObject
 {
     private readonly MainViewModel _main;
     private readonly Random _rng = new();
+    private CancellationTokenSource? _layoutCts;
 
     // Force-directed layout parameters
     private const double RepulsionForce = 5000.0;
@@ -66,8 +69,13 @@ public partial class GraphViewModel : ObservableObject
     /// Builds graph data from the current note collection.
     /// </summary>
     [RelayCommand]
-    public void BuildGraph()
+    public async Task BuildGraphAsync()
     {
+        // Cancel any existing layout computation
+        _layoutCts?.Cancel();
+        _layoutCts = new CancellationTokenSource();
+        var token = _layoutCts.Token;
+
         var notes = _main.Notes.ToList();
 
         // Notes can share the same title (e.g. multiple "Untitled Note" drafts). Build a
@@ -116,9 +124,14 @@ public partial class GraphViewModel : ObservableObject
         Nodes = new ObservableCollection<GraphNode>(nodes);
         Edges = new ObservableCollection<GraphEdge>(edges);
 
-        // Run initial layout iterations
-        for (int i = 0; i < 100; i++)
-            StepLayout();
+        // Run initial layout iterations in background
+        await Task.Run(() =>
+        {
+            for (int i = 0; i < 100 && !token.IsCancellationRequested; i++)
+            {
+                StepLayout();
+            }
+        }, token).ConfigureAwait(false);
     }
 
     /// <summary>
