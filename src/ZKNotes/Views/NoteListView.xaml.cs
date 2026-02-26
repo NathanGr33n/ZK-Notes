@@ -148,7 +148,15 @@ public partial class NoteListView : UserControl
                 if (suggestion is null)
                     return false;
 
-                var insert = $"[[{suggestion.Id}|{suggestion.Title}]]";
+                // Preserve a typed alias if the user is in [[target|alias]] form.
+                var innerStart = _tokenStartOffset + 2;
+                var innerLength = Math.Max(0, caretOffset - innerStart);
+                var inner = innerLength > 0 ? ContentEditor.Document.GetText(innerStart, innerLength) : string.Empty;
+                var pipe = inner.IndexOf('|', StringComparison.Ordinal);
+                var alias = pipe >= 0 ? inner[(pipe + 1)..] : string.Empty;
+                var display = string.IsNullOrWhiteSpace(alias) ? suggestion.Title : alias.Trim();
+
+                var insert = $"[[{suggestion.Id}|{display}]]";
                 ContentEditor.Document.Replace(_tokenStartOffset, caretOffset - _tokenStartOffset, insert);
                 ContentEditor.CaretOffset = _tokenStartOffset + insert.Length;
                 break;
@@ -239,15 +247,15 @@ public partial class NoteListView : UserControl
             return false;
 
         var inner = before[(open + 2)..];
+
+        // Support [[target]] and [[target|alias]].
+        // Suggestions should keep working even after the user types '|', so we base matching
+        // on the target portion only.
         var pipe = inner.IndexOf('|', StringComparison.Ordinal);
-        if (pipe >= 0)
-        {
-            // Once the user starts editing the alias, stop suggestions.
-            return false;
-        }
+        var target = pipe >= 0 ? inner[..pipe] : inner;
 
         tokenStartOffset = open;
-        partial = inner.Trim();
+        partial = target.Trim();
         return true;
     }
 
