@@ -89,6 +89,8 @@ public sealed class StorageService
         {
             Id = note.Id,
             Title = note.Title,
+            Type = note.Type.ToString().ToLowerInvariant(),
+            Template = note.Template,
             Tags = note.Tags,
             Created = note.Created,
             LastEdit = note.LastEdit,
@@ -237,12 +239,27 @@ public sealed class StorageService
             Id = string.IsNullOrEmpty(metadata.Id) ? fallbackId : metadata.Id,
             Title = metadata.Title,
             Content = content,
+            Type = ParseNoteType(metadata.Type),
+            Template = metadata.Template,
             Tags = metadata.Tags ?? [],
             Links = metadata.Links ?? [],
             Attachments = metadata.Attachments ?? [],
             Created = metadata.Created == default ? DateTime.Now : metadata.Created,
             LastEdit = metadata.LastEdit == default ? DateTime.Now : metadata.LastEdit,
             LastReviewed = metadata.LastReviewed
+        };
+    }
+
+    private static NoteType ParseNoteType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+            return NoteType.Standard;
+
+        return type.Trim().ToLowerInvariant() switch
+        {
+            "fleeting" => NoteType.Fleeting,
+            "journal" => NoteType.Journal,
+            _ => NoteType.Standard
         };
     }
 }

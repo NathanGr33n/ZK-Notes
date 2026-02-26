@@ -18,6 +18,7 @@ public sealed class AppConfig
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "ZKNotes");
 
     public string AttachmentsSubfolder { get; set; } = "_attachments";
+    public string TemplatesSubfolder { get; set; } = "_templates";
 
     public static AppConfig Load()
     {

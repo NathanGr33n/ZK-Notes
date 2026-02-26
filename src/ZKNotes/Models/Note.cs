@@ -11,6 +11,10 @@ public sealed class Note
     public string Id { get; set; } = string.Empty;
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
+
+    public NoteType Type { get; set; } = NoteType.Standard;
+    public string? Template { get; set; }
+
     public List<string> Tags { get; set; } = [];
     public List<string> Links { get; set; } = [];
     public List<string> Attachments { get; set; } = [];

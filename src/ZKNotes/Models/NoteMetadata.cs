@@ -15,6 +15,12 @@ public sealed class NoteMetadata
     [YamlMember(Alias = "title")]
     public string Title { get; set; } = string.Empty;
 
+    [YamlMember(Alias = "type")]
+    public string Type { get; set; } = "standard";
+
+    [YamlMember(Alias = "template")]
+    public string? Template { get; set; }
+
     [YamlMember(Alias = "tags")]
     public List<string> Tags { get; set; } = [];
 

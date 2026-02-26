@@ -34,6 +34,30 @@
                             Style="{StaticResource PrimaryButtonStyle}"
                             Margin="4" Padding="10,7" FontSize="13"/>
 
+                    <Button Content="&#xE8A7;  Fleeting note" Command="{Binding CreateFleetingNoteCommand}"
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,6,4,2" FontSize="13"/>
+
+                    <Button Content="&#xE787;  Journal note" Command="{Binding CreateJournalNoteCommand}"
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,2" FontSize="13"/>
+
+                    <Border Margin="4,8,4,8" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"/>
+
+                    <TextBlock Text="Templates" FontSize="12" FontWeight="SemiBold"
+                               Foreground="{StaticResource SecondaryForeground}" Margin="4,0,4,6"/>
+
+                    <ComboBox ItemsSource="{Binding TemplatesList}"
+                              SelectedItem="{Binding SelectedTemplate, Mode=TwoWay}"
+                              Background="{StaticResource SurfaceBrush}"
+                              Foreground="{StaticResource ForegroundBrush}"
+                              BorderBrush="{StaticResource BorderBrush}" BorderThickness="1"
+                              Margin="4,0,4,6"/>
+
+                    <Button Content="Create from template" Command="{Binding CreateFromTemplateCommand}"
+                            Style="{StaticResource NavButtonStyle}"
+                            Margin="4,0,4,12" FontSize="13"/>
+
                     <!-- Navigation buttons -->
                     <Button Content="&#xE70B;  Notes" Tag="Notes" Click="NavButton_Click"
                             Style="{StaticResource NavButtonStyle}"
