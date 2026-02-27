@@ -40,6 +40,7 @@ public partial class MainViewModel : ObservableObject
     private readonly KnowledgeIndexService _index;
     private readonly BackupService _backup;
     private readonly LoggerService _logger;
+    private readonly ThemeService _theme;
 
     private CancellationTokenSource? _templatesRefreshCts;
 
@@ -112,7 +113,7 @@ public partial class MainViewModel : ObservableObject
     public TagManagementViewModel TagManagement { get; }
     public InsightsViewModel Insights { get; }
 
-    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index, BackupService backup, LoggerService logger)
+    public MainViewModel(StorageService storage, SearchService search, TemplateService templates, KnowledgeIndexService index, BackupService backup, LoggerService logger, ThemeService theme)
     {
         _storage = storage;
         _search = search;
@@ -120,6 +121,7 @@ public partial class MainViewModel : ObservableObject
         _index = index;
         _backup = backup;
         _logger = logger;
+        _theme = theme;
 
         _templates.TemplatesChanged += (_, _) => DebounceRefreshTemplatesList();
 
@@ -173,6 +175,12 @@ public partial class MainViewModel : ObservableObject
     private void RefreshTemplates()
     {
         RefreshTemplatesList();
+    }
+
+    [RelayCommand]
+    private void ToggleTheme()
+    {
+        _theme.ToggleTheme();
     }
 
     [RelayCommand]

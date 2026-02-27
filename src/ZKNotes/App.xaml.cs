@@ -41,9 +41,14 @@ public partial class App : Application
         services.AddSingleton(sp => new TemplateService(config.NotesDirectory, config.TemplatesSubfolder));
         services.AddSingleton(sp => new BackupService(config.NotesDirectory, sp.GetRequiredService<LoggerService>()));
         services.AddSingleton<KnowledgeIndexService>();
+        services.AddSingleton<ThemeService>();
         services.AddSingleton<MainViewModel>();
 
         _serviceProvider = services.BuildServiceProvider();
+
+        // Apply saved theme
+        var themeService = _serviceProvider.GetRequiredService<ThemeService>();
+        themeService.ApplyTheme(config.Theme);
 
         var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
 

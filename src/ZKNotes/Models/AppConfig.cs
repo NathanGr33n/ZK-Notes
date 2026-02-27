@@ -20,6 +20,8 @@ public sealed class AppConfig
     public string AttachmentsSubfolder { get; set; } = "_attachments";
     public string TemplatesSubfolder { get; set; } = "_templates";
 
+    public ThemeMode Theme { get; set; } = ThemeMode.Dark;
+
     public static AppConfig Load()
     {
         if (!File.Exists(ConfigPath))

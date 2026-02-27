@@ -23,6 +23,11 @@
                 <TextBlock DockPanel.Dock="Top" Text="ZK-Notes" FontSize="20" FontWeight="Bold"
                            Foreground="{StaticResource AccentBrush}" Margin="16,16,16,8"/>
 
+                <!-- Theme toggle at bottom -->
+                <Button DockPanel.Dock="Bottom" Content="🌙 Toggle Theme" Command="{Binding ToggleThemeCommand}"
+                        Style="{StaticResource NavButtonStyle}"
+                        Margin="8,4,8,4" FontSize="12"/>
+
                 <!-- Status bar at bottom -->
                 <TextBlock DockPanel.Dock="Bottom" Text="{Binding StatusText}"
                            Foreground="{StaticResource SecondaryForeground}" FontSize="11"
