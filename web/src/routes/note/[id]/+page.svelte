@@ -5,6 +5,9 @@
 	import { marked } from 'marked';
 	import { replaceLinksWithHtml } from '$lib/linkParser';
 	import type { NoteType } from '$lib/types';
+	import LinkAutocomplete from '$lib/components/LinkAutocomplete.svelte';
+	import LinkPreview from '$lib/components/LinkPreview.svelte';
+	import { onMount } from 'svelte';
 
 	const noteId = $derived($page.params.id ?? '');
 	const note = $derived(noteStore.getById(noteId));
@@ -12,12 +15,19 @@
 
 	let showPreview = $state(false);
 	let saveTimer: ReturnType<typeof setTimeout> | null = null;
+	let saving = $state(false);
+	let editorEl: HTMLTextAreaElement | null = $state(null);
+	let autocomplete: LinkAutocomplete | null = $state(null);
+	let previewEl: HTMLDivElement | null = $state(null);
+	let linkPreview: LinkPreview | null = $state(null);
 
 	/** Debounced auto-save on content/title change. */
 	function autoSave(field: string, value: string) {
+		saving = true;
 		if (saveTimer) clearTimeout(saveTimer);
 		saveTimer = setTimeout(() => {
 			noteStore.update(noteId, { [field]: value });
+			saving = false;
 		}, 400);
 	}
 
@@ -33,7 +43,41 @@
 		const withLinks = replaceLinksWithHtml(content);
 		return marked.parse(withLinks, { async: false }) as string;
 	}
+
+	/** Handle click on internal note links in preview. */
+	function handlePreviewClick(e: MouseEvent) {
+		const target = e.target as HTMLElement;
+		const link = target.closest('[data-note-link]') as HTMLElement | null;
+		if (!link) return;
+
+		e.preventDefault();
+		const noteRef = decodeURIComponent(link.dataset.noteLink ?? '');
+		if (!noteRef) return;
+
+		// Try to find by ID first, then by title
+		const found = noteStore.getById(noteRef)
+			?? noteStore.notes.find((n) => n.title.toLowerCase() === noteRef.toLowerCase());
+
+		if (found) {
+			goto(`/note/${found.id}`);
+		}
+	}
+
+	/** Handle autocomplete insertion. */
+	function handleAutocompleteInsert(newContent: string) {
+		noteStore.update(noteId, { content: newContent });
+	}
+
+	// Attach link preview hover listeners when preview pane is shown
+	$effect(() => {
+		if (previewEl && linkPreview) {
+			const cleanup = linkPreview.attach(previewEl);
+			return cleanup;
+		}
+	});
 </script>
+
+<LinkPreview bind:this={linkPreview} />
 
 {#if note}
 	<div class="max-w-4xl mx-auto space-y-4">
@@ -64,6 +108,10 @@
 			</button>
 
 			<button class="btn btn-sm btn-error btn-outline" onclick={deleteNote}>Delete</button>
+
+			{#if saving}
+				<span class="text-xs opacity-50">Saving...</span>
+			{/if}
 		</div>
 
 		<!-- Title -->
@@ -84,16 +132,34 @@
 
 		<!-- Editor / Preview -->
 		{#if showPreview}
-			<div class="prose prose-sm max-w-none min-h-[300px] p-4 bg-base-200 rounded-lg">
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
+			<div
+				bind:this={previewEl}
+				class="prose prose-sm max-w-none min-h-[300px] p-4 bg-base-200 rounded-lg"
+				onclick={handlePreviewClick}
+			>
 				{@html renderContent(note.content)}
 			</div>
 		{:else}
-			<textarea
-				class="textarea textarea-bordered w-full min-h-[400px] font-mono text-sm leading-relaxed"
-				placeholder="Write your note in Markdown... Use [[Note Title]] to link to other notes."
-				value={note.content}
-				oninput={(e) => autoSave('content', e.currentTarget.value)}
-			></textarea>
+			<div class="relative">
+				<textarea
+					bind:this={editorEl}
+					class="textarea textarea-bordered w-full min-h-[400px] font-mono text-sm leading-relaxed"
+					placeholder="Write your note in Markdown... Use [[Note Title]] to link to other notes."
+					value={note.content}
+					oninput={(e) => {
+						autoSave('content', e.currentTarget.value);
+						autocomplete?.handleInput();
+					}}
+					onkeydown={(e) => autocomplete?.handleKeydown(e)}
+				></textarea>
+				<LinkAutocomplete
+					bind:this={autocomplete}
+					textarea={editorEl}
+					onInsert={handleAutocompleteInsert}
+				/>
+			</div>
 		{/if}
 
 		<!-- Metadata -->
