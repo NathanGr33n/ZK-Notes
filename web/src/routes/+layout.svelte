@@ -7,6 +7,12 @@
 	let { children } = $props();
 
 	let sidebarOpen = $state(true);
+	let searchQuery = $state('');
+
+	const searchResults = $derived.by(() => {
+		if (!searchQuery.trim()) return [];
+		return noteStore.search(searchQuery).slice(0, 10);
+	});
 </script>
 
 <div class="flex h-screen overflow-hidden bg-base-100 text-base-content">
@@ -23,12 +29,27 @@
 			</div>
 
 			<!-- Search -->
-			<div class="px-3 py-2">
+			<div class="px-3 py-2 relative">
 				<input
 					type="text"
-					placeholder="Search notes..."
+					placeholder="Search notes... (Ctrl+K)"
 					class="input input-sm input-bordered w-full"
+					bind:value={searchQuery}
 				/>
+				{#if searchResults.length > 0}
+					<div class="absolute left-3 right-3 top-full z-50 bg-base-100 border border-base-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto">
+						{#each searchResults as result}
+							<a
+								href="/note/{result.id}"
+								class="block px-3 py-2 text-sm hover:bg-base-200 transition-colors"
+								onclick={() => (searchQuery = '')}
+							>
+								<div class="font-medium truncate">{result.title || result.id}</div>
+								<div class="text-xs opacity-50 truncate">{result.content.slice(0, 60)}</div>
+							</a>
+						{/each}
+					</div>
+				{/if}
 			</div>
 
 			<!-- Create actions -->
