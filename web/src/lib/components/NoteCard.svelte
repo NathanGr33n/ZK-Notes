@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Note } from '$lib/types';
 	import { fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import gsap from 'gsap';
 
 	interface Props {
 		note: Note;
@@ -20,6 +22,19 @@
 		note.content.length > 120 ? note.content.slice(0, 120) + '…' : note.content || 'Empty note'
 	);
 
+	let cardEl: HTMLElement | null = $state(null);
+
+	onMount(() => {
+		if (cardEl) {
+			gsap.from(cardEl, {
+				opacity: 0,
+				y: 12,
+				duration: 0.3,
+				ease: 'power2.out',
+			});
+		}
+	});
+
 	/** Relative time label. */
 	function timeAgo(iso: string): string {
 		const diff = Date.now() - new Date(iso).getTime();
@@ -34,10 +49,10 @@
 </script>
 
 <a
+	bind:this={cardEl}
 	href="/note/{note.id}"
 	class="card bg-base-100 border border-base-300 shadow-sm hover:shadow-md
 		hover:-translate-y-0.5 transition-all duration-150 cursor-pointer"
-	in:fade={{ duration: 150 }}
 >
 	<div class="card-body p-4 gap-2">
 		<!-- Header row: type badge + ID -->
