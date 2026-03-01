@@ -16,10 +16,10 @@ function createThemeStore() {
 		try { localStorage.setItem(THEME_KEY, theme); } catch { /* noop */ }
 	}
 
-	// Apply on init (client-side only)
-	if (typeof document !== 'undefined') {
+	// Apply theme reactively whenever it changes
+	$effect(() => {
 		applyTheme(theme);
-	}
+	});
 
 	return {
 		get current() { return theme; },
