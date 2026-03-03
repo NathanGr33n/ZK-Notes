@@ -1,4 +1,4 @@
-import type { Note, NoteType } from './types';
+import type { Note, NoteType, NoteColor, SortMode } from './types';
 import { createNote } from './types';
 import { extractLinkTargets } from './linkParser';
 import { extractTags } from './tagParser';
@@ -37,14 +37,26 @@ function createNoteStore() {
 		return index;
 	});
 
-	/** All unique tags across all notes. */
+	/** All unique tags across every non-archived note. */
 	const allTags = $derived.by<string[]>(() => {
 		const tagSet = new Set<string>();
 		for (const note of notes) {
+			if (note.archived) continue;
 			for (const tag of note.tags) tagSet.add(tag);
 		}
 		return [...tagSet].sort();
 	});
+
+	/** Active (non-archived) notes. */
+	const activeNotes = $derived(notes.filter((n) => !n.archived));
+
+	/** Pinned notes, most recently edited first. */
+	const pinnedNotes = $derived(
+		activeNotes.filter((n) => n.pinned).sort((a, b) => b.lastEdit.localeCompare(a.lastEdit))
+	);
+
+	/** Archived notes. */
+	const archivedNotes = $derived(notes.filter((n) => n.archived));
 
 	// --- Actions ---
 
@@ -88,6 +100,59 @@ function createNoteStore() {
 		persist();
 	}
 
+	/** Toggle pin status. */
+	function togglePin(id: string) {
+		const note = byId.get(id);
+		if (note) update(id, { pinned: !note.pinned });
+	}
+
+	/** Soft-delete: move to archive. */
+	function archive(id: string) {
+		update(id, { archived: true });
+	}
+
+	/** Restore from archive. */
+	function restore(id: string) {
+		update(id, { archived: false });
+	}
+
+	/** Set the accent color of a note. */
+	function setColor(id: string, color: NoteColor) {
+		update(id, { color });
+	}
+
+	/** Sort a list of notes by the given mode. */
+	function sorted(list: Note[], mode: SortMode): Note[] {
+		return [...list].sort((a, b) => {
+			switch (mode) {
+				case 'lastEdit': return b.lastEdit.localeCompare(a.lastEdit);
+				case 'created': return b.created.localeCompare(a.created);
+				case 'alpha': return (a.title || a.id).localeCompare(b.title || b.id);
+			}
+		});
+	}
+
+	/** Export all notes as a JSON string. */
+	function exportNotes(): string {
+		return JSON.stringify(notes, null, 2);
+	}
+
+	/** Import notes from JSON, merging by ID. */
+	function importNotes(json: string) {
+		try {
+			const imported: Note[] = JSON.parse(json);
+			const existing = new Set(notes.map((n) => n.id));
+			const newNotes = imported.filter((n) => !existing.has(n.id));
+			notes = [...notes, ...newNotes.map((n) => ({
+				...n,
+				pinned: n.pinned ?? false,
+				archived: n.archived ?? false,
+				color: n.color ?? 'none',
+			}))];
+			persist();
+		} catch { /* invalid JSON — fail silently */ }
+	}
+
 	function getById(id: string): Note | undefined {
 		return byId.get(id);
 	}
@@ -119,6 +184,9 @@ function createNoteStore() {
 
 	return {
 		get notes() { return notes; },
+		get activeNotes() { return activeNotes; },
+		get pinnedNotes() { return pinnedNotes; },
+		get archivedNotes() { return archivedNotes; },
 		get allTags() { return allTags; },
 		add,
 		update,
@@ -126,6 +194,13 @@ function createNoteStore() {
 		getById,
 		getBacklinks,
 		search,
+		togglePin,
+		archive,
+		restore,
+		setColor,
+		sorted,
+		exportNotes,
+		importNotes,
 	};
 }
 

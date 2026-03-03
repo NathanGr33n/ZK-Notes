@@ -14,6 +14,13 @@ export type NoteType = 'fleeting' | 'literature' | 'permanent' | 'standard';
  */
 export type LinkRelation = 'continuation' | 'contrast' | 'example' | 'contextual';
 
+/** Available accent colors for note cover strips. */
+export const NOTE_COLORS = ['none', 'blue', 'violet', 'teal', 'amber', 'rose', 'sage', 'stone'] as const;
+export type NoteColor = (typeof NOTE_COLORS)[number];
+
+/** Sort options for note lists. */
+export type SortMode = 'lastEdit' | 'created' | 'alpha';
+
 /** YAML frontmatter metadata stored at the top of each .md file. */
 export interface NoteMetadata {
 	id: string;
@@ -24,6 +31,9 @@ export interface NoteMetadata {
 	created: string;   // ISO 8601
 	lastEdit: string;  // ISO 8601
 	lastReviewed?: string;
+	pinned?: boolean;
+	archived?: boolean;
+	color?: NoteColor;
 }
 
 /** A fully hydrated Zettelkasten note. */
@@ -38,6 +48,9 @@ export interface Note {
 	created: string;
 	lastEdit: string;
 	lastReviewed?: string;
+	pinned: boolean;
+	archived: boolean;
+	color: NoteColor;
 }
 
 /** Creates a blank note with sensible defaults. */
@@ -53,5 +66,8 @@ export function createNote(id: string, type: NoteType = 'permanent'): Note {
 		backlinks: [],
 		created: now,
 		lastEdit: now,
+		pinned: false,
+		archived: false,
+		color: 'none',
 	};
 }
