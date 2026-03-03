@@ -138,6 +138,16 @@ function createMainWindow() {
 		win.focus();
 	});
 
+	// Log console messages from renderer
+	win.webContents.on('console-message', (event, level, message, line, sourceId) => {
+		console.log(`[Renderer ${level}]:`, message, sourceId ? `(${sourceId}:${line})` : '');
+	});
+
+	// Log page load errors
+	win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
+		console.error('Page failed to load:', errorCode, errorDescription, validatedURL);
+	});
+
 	return win;
 }
 
@@ -146,7 +156,9 @@ async function bootstrap() {
 
 	const startUrl = process.env.ELECTRON_START_URL;
 	if (startUrl) {
+		console.log('Loading from dev server:', startUrl);
 		await win.loadURL(startUrl);
+		win.webContents.openDevTools();
 		return;
 	}
 
@@ -164,7 +176,10 @@ async function bootstrap() {
 	}
 
 	const port = await startStaticServer(rootDir);
+	console.log('Static server running on port:', port);
+	console.log('Loading from:', `http://127.0.0.1:${port}/`);
 	await win.loadURL(`http://127.0.0.1:${port}/`);
+	win.webContents.openDevTools();
 }
 
 app.whenReady().then(bootstrap);
