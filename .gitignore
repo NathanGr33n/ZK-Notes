@@ -102,3 +102,9 @@ _logs/
 
 ## Application backups
 _backups/
+
+## Node/Electron
+desktop/node_modules/
+desktop/dist/
+desktop/release/
+desktop/out/

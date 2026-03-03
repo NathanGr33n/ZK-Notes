@@ -1,0 +1,57 @@
+{
+  "name": "zknotes-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/main.cjs",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "build:web": "npm --prefix ../web run build",
+    "dev": "concurrently -k -n WEB,ELECTRON -c cyan,green \"npm --prefix ../web run dev -- --host 127.0.0.1 --port 5173\" \"wait-on http://127.0.0.1:5173 && cross-env ELECTRON_START_URL=http://127.0.0.1:5173 electron .\"",
+    "start": "npm run build:web && electron .",
+    "pack": "npm run build:web && electron-builder --dir",
+    "dist": "npm run build:web && electron-builder"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "cross-env": "^7.0.3",
+    "electron": "^34.0.0",
+    "electron-builder": "^26.0.12",
+    "wait-on": "^8.0.5"
+  },
+  "build": {
+    "appId": "com.zknotes.desktop",
+    "productName": "ZK-Notes",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../web/build",
+        "to": "web"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  },
+  "dependencies": {
+    "web": "file:../web"
+  }
+}

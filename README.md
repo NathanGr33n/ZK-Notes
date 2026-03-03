@@ -43,6 +43,25 @@ npm run build    # Production build
 npm run preview  # Preview production build
 ```
 
+## Desktop App (Electron)
+
+A cross-platform desktop wrapper for the SvelteKit UI lives in `desktop/`.
+
+### Dev
+
+```sh
+cd desktop
+npm install
+npm run dev
+```
+
+### Build & Package
+
+```sh
+cd desktop
+npm run dist
+```
+
 ## Desktop App (WPF)
 
 The original desktop client lives in `src/ZKNotes/` and is built with:
