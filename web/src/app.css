@@ -1,55 +1,173 @@
 @import 'tailwindcss';
 @plugin "daisyui" {
-  themes: light --default, dark;
+  themes: light, dark --default;
 }
 
-/* Paper-like light theme overrides (DESIGN.md §4.1) */
+/* ─── Stoic Dark Theme (default) ─── */
+[data-theme="dark"] {
+  --b1: 8% 0.005 260;         /* near-black base */
+  --b2: 12% 0.008 260;        /* card / surface */
+  --b3: 16% 0.008 260;        /* borders / dividers */
+  --bc: 85% 0.005 260;        /* primary text */
+  --p: 60% 0.14 250;          /* muted steel blue */
+  --pc: 10% 0.005 250;
+  --s: 55% 0.10 280;          /* quiet violet */
+  --sc: 10% 0.005 280;
+  --a: 55% 0.12 170;          /* muted teal */
+  --ac: 10% 0.005 170;
+  --n: 65% 0.005 260;         /* neutral content */
+  --nc: 12% 0.008 260;
+  --in: 60% 0.14 250;
+  --su: 60% 0.14 155;
+  --wa: 65% 0.16 80;
+  --er: 60% 0.18 25;
+  --rounded-box: 0.625rem;
+  --rounded-btn: 0.5rem;
+}
+
+/* ─── Paper Light Theme ─── */
 [data-theme="light"] {
-  --b1: 97.5% 0.005 80;      /* warm off-white background */
-  --b2: 94% 0.008 80;        /* slightly darker surface */
-  --b3: 90% 0.01 80;         /* borders */
-  --bc: 20% 0.02 260;        /* warm dark text */
-  --p: 45% 0.15 260;         /* muted blue primary */
-  --pc: 98% 0.005 260;
-  --s: 55% 0.12 40;          /* warm accent */
+  --b1: 97% 0.005 80;
+  --b2: 94% 0.008 80;
+  --b3: 89% 0.01 80;
+  --bc: 18% 0.02 260;
+  --p: 42% 0.15 250;
+  --pc: 98% 0.005 250;
+  --s: 50% 0.12 40;
   --sc: 98% 0.005 40;
-  --a: 60% 0.14 150;         /* sage green accent */
+  --a: 55% 0.14 150;
   --ac: 98% 0.005 150;
   --n: 35% 0.02 260;
   --nc: 95% 0.005 80;
-  --rounded-box: 0.5rem;
-  --rounded-btn: 0.375rem;
+  --rounded-box: 0.625rem;
+  --rounded-btn: 0.5rem;
 }
 
-/* Dark charcoal theme (DESIGN.md §4.2) */
-[data-theme="dark"] {
-  --b1: 18% 0.01 260;        /* deep charcoal */
-  --b2: 22% 0.015 260;       /* slightly lighter surface */
-  --b3: 28% 0.015 260;       /* borders */
-  --bc: 90% 0.005 260;       /* cool light text */
-  --p: 65% 0.18 250;         /* cool blue primary */
-  --pc: 15% 0.01 250;
-  --s: 65% 0.15 330;         /* cool purple accent */
-  --sc: 15% 0.01 330;
-  --a: 65% 0.16 170;         /* teal accent */
-  --ac: 15% 0.01 170;
-  --n: 75% 0.01 260;
-  --nc: 22% 0.015 260;
-  --rounded-box: 0.5rem;
-  --rounded-btn: 0.375rem;
-}
-
-/* Microinteraction: button press feedback (DESIGN.md §3.5) */
-.btn:active {
-  transform: scale(0.95);
-  transition: transform 75ms ease;
-}
-
-/* Smooth theme transition (DESIGN.md §4.3) */
+/* ─── Root Defaults ─── */
 html {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.card, .btn, .input, .textarea, .select, .badge, aside, header {
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+body {
+  overflow: hidden;
+}
+
+/* ─── Scrollbar Styling ─── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Glassmorphism Utility ─── */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Card / Surface Base ─── */
+.surface {
+  background: oklch(var(--b2));
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--rounded-box);
+}
+
+[data-theme="light"] .surface {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* ─── Microinteraction: button press ─── */
+.btn:active {
+  transform: scale(0.96);
+  transition: transform 75ms ease;
+}
+
+/* ─── Smooth transitions ─── */
+.card, .btn, .input, .textarea, .select, .badge, aside, header, main {
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* ─── Focus ring ─── */
+.input:focus, .textarea:focus, .select:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px oklch(var(--p) / 0.25);
+  border-color: oklch(var(--p) / 0.4);
+}
+
+/* ─── Note color accents ─── */
+.note-accent-blue    { border-top: 2px solid oklch(60% 0.14 250); }
+.note-accent-violet  { border-top: 2px solid oklch(55% 0.14 280); }
+.note-accent-teal    { border-top: 2px solid oklch(55% 0.14 170); }
+.note-accent-amber   { border-top: 2px solid oklch(65% 0.16 80); }
+.note-accent-rose    { border-top: 2px solid oklch(60% 0.16 15); }
+.note-accent-sage    { border-top: 2px solid oklch(55% 0.10 150); }
+.note-accent-stone   { border-top: 2px solid oklch(45% 0.02 260); }
+.note-accent-none    { border-top: 2px solid transparent; }
+
+/* ─── Prose styling for markdown preview ─── */
+.prose {
+  --tw-prose-body: oklch(var(--bc));
+  --tw-prose-headings: oklch(var(--bc));
+  --tw-prose-links: oklch(var(--p));
+  --tw-prose-code: oklch(var(--bc));
+}
+
+.prose pre {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+}
+
+[data-theme="light"] .prose pre {
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ─── Animations ─── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.15s ease-out;
 }
