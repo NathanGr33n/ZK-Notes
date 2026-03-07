@@ -25,6 +25,7 @@
 		{ id: 'toggle-theme', label: 'Toggle Theme', icon: '🎨', hint: 'Settings', action: () => { themeStore.toggle(); close(); } },
 		{ id: 'go-home', label: 'Go to Workspace', icon: '🏠', hint: 'Navigate', action: () => { goto('/'); close(); } },
 		{ id: 'go-trash', label: 'Open Trash', icon: '🗑️', hint: 'Navigate', action: () => { goto('/trash'); close(); } },
+		{ id: 'go-graph', label: 'Open Knowledge Graph', icon: '🔗', hint: 'Navigate', action: () => { goto('/graph'); close(); } },
 	];
 
 	const results = $derived.by<Action[]>(() => {
