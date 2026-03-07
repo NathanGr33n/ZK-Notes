@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { noteStore } from '$lib/noteStore.svelte';
 	import { marked } from 'marked';
+	import DOMPurify from 'dompurify';
 	import { replaceLinksWithHtml } from '$lib/linkParser';
 	import type { NoteType, NoteColor } from '$lib/types';
 	import { NOTE_COLORS } from '$lib/types';
@@ -72,7 +73,10 @@
 
 	function renderContent(content: string): string {
 		const withLinks = replaceLinksWithHtml(content);
-		return marked.parse(withLinks, { async: false }) as string;
+		const raw = marked.parse(withLinks, { async: false }) as string;
+		return DOMPurify.sanitize(raw, {
+			ADD_ATTR: ['data-note-link'],
+		});
 	}
 
 	function handlePreviewClick(e: MouseEvent) {
