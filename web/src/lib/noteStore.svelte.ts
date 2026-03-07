@@ -2,17 +2,19 @@ import type { Note, NoteType, NoteColor, SortMode } from './types';
 import { createNote } from './types';
 import { extractLinkTargets } from './linkParser';
 import { extractTags } from './tagParser';
-
-const STORAGE_KEY = 'zk-notes';
-const COUNTER_KEY = 'zk-counter';
+import * as storage from './storage';
 
 /**
  * Central reactive store for all Zettelkasten notes.
  * Uses Svelte 5 runes ($state, $derived) for fine-grained reactivity.
+ * Persistence is backed by IndexedDB via the storage adapter.
  */
 function createNoteStore() {
-	let notes = $state<Note[]>(loadFromStorage());
-	let counter = $state<number>(loadCounter());
+	let notes = $state<Note[]>([]);
+	let counter = $state<number>(0);
+	let ready = $state(false);
+	let _readyResolve: (() => void) | null = null;
+	const readyPromise = new Promise<void>((r) => { _readyResolve = r; });
 
 	// --- Derived indexes ---
 
@@ -58,22 +60,46 @@ function createNoteStore() {
 	/** Archived notes. */
 	const archivedNotes = $derived(notes.filter((n) => n.archived));
 
+	// --- Async initialization ---
+
+	async function init(): Promise<void> {
+		if (ready) return;
+		try {
+			// Migrate legacy localStorage data (runs once, no-op if already migrated)
+			await storage.migrateFromLocalStorage();
+
+			const loaded = await storage.loadAll();
+			notes = loaded.map((n) => ({
+				...n,
+				pinned: n.pinned ?? false,
+				archived: n.archived ?? false,
+				color: n.color ?? 'none',
+			}));
+			counter = await storage.loadCounter();
+		} catch (err) {
+			console.error('[NoteStore] Failed to load from IndexedDB:', err);
+		}
+		ready = true;
+		_readyResolve?.();
+	}
+
 	// --- Actions ---
 
 	function generateId(): string {
 		counter++;
-		saveCounter(counter);
+		storage.saveCounter(counter); // fire-and-forget
 		return `ZK-${String(counter).padStart(4, '0')}`;
 	}
 
 	function add(type: NoteType = 'permanent'): Note {
 		const note = createNote(generateId(), type);
 		notes = [...notes, note];
-		persist();
+		storage.saveOne(note); // fire-and-forget
 		return note;
 	}
 
 	function update(id: string, changes: Partial<Omit<Note, 'id' | 'created'>>) {
+		let updatedNote: Note | null = null;
 		notes = notes.map((n) => {
 			if (n.id !== id) return n;
 
@@ -90,14 +116,15 @@ function createNoteStore() {
 				];
 			}
 
+			updatedNote = updated;
 			return updated;
 		});
-		persist();
+		if (updatedNote) storage.saveOne(updatedNote); // fire-and-forget
 	}
 
 	function remove(id: string) {
 		notes = notes.filter((n) => n.id !== id);
-		persist();
+		storage.removeOne(id); // fire-and-forget
 	}
 
 	/** Toggle pin status. */
@@ -143,13 +170,14 @@ function createNoteStore() {
 			const imported: Note[] = JSON.parse(json);
 			const existing = new Set(notes.map((n) => n.id));
 			const newNotes = imported.filter((n) => !existing.has(n.id));
-			notes = [...notes, ...newNotes.map((n) => ({
+			const normalized = newNotes.map((n) => ({
 				...n,
 				pinned: n.pinned ?? false,
 				archived: n.archived ?? false,
 				color: n.color ?? 'none',
-			}))];
-			persist();
+			}));
+			notes = [...notes, ...normalized];
+			storage.saveAll(notes); // fire-and-forget full write
 		} catch { /* invalid JSON — fail silently */ }
 	}
 
@@ -172,22 +200,15 @@ function createNoteStore() {
 		);
 	}
 
-	// --- Persistence ---
-
-	function persist() {
-		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-		} catch {
-			// Storage full or unavailable — fail silently
-		}
-	}
-
 	return {
 		get notes() { return notes; },
 		get activeNotes() { return activeNotes; },
 		get pinnedNotes() { return pinnedNotes; },
 		get archivedNotes() { return archivedNotes; },
 		get allTags() { return allTags; },
+		get ready() { return ready; },
+		get readyPromise() { return readyPromise; },
+		init,
 		add,
 		update,
 		remove,
@@ -202,33 +223,6 @@ function createNoteStore() {
 		exportNotes,
 		importNotes,
 	};
-}
-
-function loadFromStorage(): Note[] {
-	if (typeof localStorage === 'undefined') return [];
-	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		return raw ? JSON.parse(raw) : [];
-	} catch {
-		return [];
-	}
-}
-
-function loadCounter(): number {
-	if (typeof localStorage === 'undefined') return 0;
-	try {
-		return parseInt(localStorage.getItem(COUNTER_KEY) ?? '0', 10);
-	} catch {
-		return 0;
-	}
-}
-
-function saveCounter(value: number) {
-	try {
-		localStorage.setItem(COUNTER_KEY, String(value));
-	} catch {
-		// fail silently
-	}
 }
 
 export const noteStore = createNoteStore();
