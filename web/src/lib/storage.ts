@@ -140,3 +140,15 @@ export async function saveCounter(value: number): Promise<void> {
 	const db = await getDb();
 	await db.put(META_STORE, value, 'counter');
 }
+
+/**
+ * Reset the cached DB connection. Used by tests to ensure
+ * a fresh database between test runs.
+ * @internal
+ */
+export function _resetForTesting(): void {
+	if (dbInstance) {
+		dbInstance.close();
+		dbInstance = null;
+	}
+}
