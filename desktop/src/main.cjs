@@ -179,7 +179,6 @@ async function bootstrap() {
 	console.log('Static server running on port:', port);
 	console.log('Loading from:', `http://127.0.0.1:${port}/`);
 	await win.loadURL(`http://127.0.0.1:${port}/`);
-	win.webContents.openDevTools();
 }
 
 app.whenReady().then(bootstrap);
