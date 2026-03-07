@@ -3,11 +3,16 @@
 	import { themeStore } from '$lib/themeStore.svelte';
 	import { noteStore } from '$lib/noteStore.svelte';
 	import { slide } from 'svelte/transition';
+	import { onMount } from 'svelte';
 	import TitleBar from '$lib/components/TitleBar.svelte';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import QuickCapture from '$lib/components/QuickCapture.svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		noteStore.init();
+	});
 
 	let sidebarOpen = $state(true);
 	let noteTypeFilter = $state<'all' | 'permanent' | 'literature' | 'fleeting'>('all');
@@ -136,6 +141,7 @@
 						</div>
 					</details>
 
+					<a href="/graph" class="btn btn-ghost btn-sm w-full justify-start">🔗 Graph</a>
 					<a href="/trash" class="btn btn-ghost btn-sm w-full justify-start">🗑️ Trash</a>
 				</nav>
 
@@ -150,7 +156,13 @@
 		<!-- Main content -->
 		<div class="flex-1 flex flex-col overflow-hidden">
 			<main class="flex-1 overflow-auto p-4">
-				{@render children()}
+				{#if noteStore.ready}
+					{@render children()}
+				{:else}
+					<div class="flex items-center justify-center h-full">
+						<span class="loading loading-spinner loading-md opacity-30"></span>
+					</div>
+				{/if}
 			</main>
 		</div>
 	</div>
