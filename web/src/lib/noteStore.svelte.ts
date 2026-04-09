@@ -2,6 +2,7 @@ import type { Note, NoteType, NoteColor, SortMode } from './types';
 import { createNote } from './types';
 import { extractLinkTargets } from './linkParser';
 import { extractTags } from './tagParser';
+import { searchNotes, type SearchResult } from './searchEngine';
 import * as storage from './storage';
 
 /**
@@ -189,15 +190,9 @@ function createNoteStore() {
 		return backlinkIndex.get(id) ?? [];
 	}
 
-	function search(query: string): Note[] {
-		if (!query.trim()) return notes;
-		const q = query.toLowerCase();
-		return notes.filter(
-			(n) =>
-				n.title.toLowerCase().includes(q) ||
-				n.content.toLowerCase().includes(q) ||
-				n.tags.some((t) => t.includes(q))
-		);
+	/** Fuzzy search with relevance ranking and match highlights. */
+	function search(query: string): SearchResult[] {
+		return searchNotes(notes, query);
 	}
 
 	return {
