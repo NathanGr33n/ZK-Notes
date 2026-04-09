@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { fade, scale } from 'svelte/transition';
 	import { onMount, onDestroy } from 'svelte';
+	import { searchNotes, highlightMatch, fuzzyMatch } from '$lib/searchEngine';
 
 	let visible = $state(false);
 	let query = $state('');
@@ -13,6 +14,8 @@
 	interface Action {
 		id: string;
 		label: string;
+		/** HTML string with <mark> highlights (used instead of label when present). */
+		labelHtml?: string;
 		hint?: string;
 		icon: string;
 		action: () => void;
@@ -29,25 +32,36 @@
 	];
 
 	const results = $derived.by<Action[]>(() => {
-		const q = query.toLowerCase().trim();
-		const noteActions: Action[] = noteStore.activeNotes
-			.filter((n) =>
-				n.title.toLowerCase().includes(q) ||
-				n.id.toLowerCase().includes(q) ||
-				n.content.toLowerCase().includes(q)
-			)
-			.slice(0, 8)
-			.map((n) => ({
-				id: n.id,
-				label: n.title || n.id,
-				hint: n.type,
-				icon: n.type === 'fleeting' ? '⚡' : n.type === 'literature' ? '📖' : '📝',
-				action: () => { goto(`/note/${n.id}`); close(); },
-			}));
+		const q = query.trim();
 
-		const filteredStatic = q
-			? staticActions.filter((a) => a.label.toLowerCase().includes(q))
-			: staticActions;
+		// Fuzzy-search notes (already ranked by relevance)
+		const searchResults = searchNotes(noteStore.activeNotes, q);
+		const noteActions: Action[] = searchResults.slice(0, 8).map((sr) => {
+			const note = noteStore.getById(sr.noteId)!;
+			const titleMatch = sr.matches.find((m) => m.field === 'title');
+			const label = note.title || note.id;
+			return {
+				id: note.id,
+				label,
+				labelHtml: titleMatch ? highlightMatch(label, titleMatch.indices) : undefined,
+				hint: note.type,
+				icon: note.type === 'fleeting' ? '⚡' : note.type === 'literature' ? '📖' : '📝',
+				action: () => { goto(`/note/${note.id}`); close(); },
+			};
+		});
+
+		// Fuzzy-filter static actions too
+		let filteredStatic: Action[];
+		if (q) {
+			const scored: (Action & { _score: number })[] = [];
+			for (const a of staticActions) {
+				const m = fuzzyMatch(q, a.label);
+				if (m) scored.push({ ...a, labelHtml: highlightMatch(a.label, m.indices), _score: m.score });
+			}
+			filteredStatic = scored.sort((a, b) => b._score - a._score);
+		} else {
+			filteredStatic = staticActions;
+		}
 
 		return [...noteActions, ...filteredStatic].slice(0, 12);
 	});
@@ -158,7 +172,13 @@
 							onclick={() => item.action()}
 						>
 							<span class="palette-item-icon">{item.icon}</span>
-							<span class="palette-item-label">{item.label}</span>
+							<span class="palette-item-label">
+								{#if item.labelHtml}
+									{@html item.labelHtml}
+								{:else}
+									{item.label}
+								{/if}
+							</span>
 							{#if item.hint}
 								<span class="palette-item-hint">{item.hint}</span>
 							{/if}
