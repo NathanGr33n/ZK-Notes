@@ -153,6 +153,18 @@ body {
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+/* ─── Search Highlights ─── */
+mark {
+  background: oklch(65% 0.16 80 / 0.25);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+[data-theme="light"] mark {
+  background: oklch(75% 0.16 80 / 0.35);
+}
+
 /* ─── Animations ─── */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(8px); }
