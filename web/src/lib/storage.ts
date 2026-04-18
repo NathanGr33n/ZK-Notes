@@ -1,7 +1,8 @@
 /**
  * IndexedDB-backed storage adapter for Zettelkasten notes.
  *
- * Provides async CRUD operations with automatic migration from
+ * Provides async CRUD operations, diagnostics, and local
+ * operational metadata with automatic migration from
  * localStorage on first load. Uses the `idb` library for a
  * promise-based IndexedDB API.
  *
@@ -17,12 +18,37 @@ const DB_NAME = 'zk-notes-db';
 const DB_VERSION = 1;
 const NOTES_STORE = 'notes';
 const META_STORE = 'meta';
+const STORAGE_INFO_KEY = 'storage-info';
 
 // Legacy localStorage keys (for migration)
 const LS_NOTES_KEY = 'zk-notes';
 const LS_COUNTER_KEY = 'zk-counter';
 
 let dbInstance: IDBPDatabase | null = null;
+
+interface StorageInfo {
+	migratedFromLocalStorage: boolean;
+	lastBackupAt: string | null;
+	lastImportAt: string | null;
+}
+
+const DEFAULT_STORAGE_INFO: StorageInfo = {
+	migratedFromLocalStorage: false,
+	lastBackupAt: null,
+	lastImportAt: null,
+};
+
+export interface StorageDiagnostics {
+	provider: 'indexeddb';
+	dbName: string;
+	dbVersion: number;
+	localOnly: true;
+	noteCount: number;
+	counter: number;
+	migratedFromLocalStorage: boolean;
+	lastBackupAt: string | null;
+	lastImportAt: string | null;
+}
 
 /** Open (or create) the database, upgrading schema as needed. */
 async function getDb(): Promise<IDBPDatabase> {
@@ -40,6 +66,34 @@ async function getDb(): Promise<IDBPDatabase> {
 	});
 
 	return dbInstance;
+}
+
+function normalizeStorageInfo(value: unknown): StorageInfo {
+	if (!value || typeof value !== 'object') {
+		return { ...DEFAULT_STORAGE_INFO };
+	}
+
+	const input = value as Partial<StorageInfo>;
+	return {
+		migratedFromLocalStorage: input.migratedFromLocalStorage === true,
+		lastBackupAt: typeof input.lastBackupAt === 'string' ? input.lastBackupAt : null,
+		lastImportAt: typeof input.lastImportAt === 'string' ? input.lastImportAt : null,
+	};
+}
+
+async function loadStorageInfo(db: IDBPDatabase): Promise<StorageInfo> {
+	const value = await db.get(META_STORE, STORAGE_INFO_KEY);
+	return normalizeStorageInfo(value);
+}
+
+async function saveStorageInfo(db: IDBPDatabase, info: StorageInfo): Promise<void> {
+	await db.put(META_STORE, info, STORAGE_INFO_KEY);
+}
+
+async function markStorageEvent(key: 'lastBackupAt' | 'lastImportAt'): Promise<void> {
+	const db = await getDb();
+	const info = await loadStorageInfo(db);
+	await saveStorageInfo(db, { ...info, [key]: new Date().toISOString() });
 }
 
 /**
@@ -81,6 +135,12 @@ export async function migrateFromLocalStorage(): Promise<void> {
 		if (counter > 0) {
 			await db.put(META_STORE, counter, 'counter');
 		}
+
+		const info = await loadStorageInfo(db);
+		await saveStorageInfo(db, {
+			...info,
+			migratedFromLocalStorage: true,
+		});
 
 		// Clean up legacy storage
 		localStorage.removeItem(LS_NOTES_KEY);
@@ -139,6 +199,38 @@ export async function loadCounter(): Promise<number> {
 export async function saveCounter(value: number): Promise<void> {
 	const db = await getDb();
 	await db.put(META_STORE, value, 'counter');
+}
+
+/** Record that a local backup/export event was triggered. */
+export async function recordBackupEvent(): Promise<void> {
+	await markStorageEvent('lastBackupAt');
+}
+
+/** Record that a local import/restore event was triggered. */
+export async function recordImportEvent(): Promise<void> {
+	await markStorageEvent('lastImportAt');
+}
+
+/** Return current local storage diagnostics for status and operations UI. */
+export async function getDiagnostics(): Promise<StorageDiagnostics> {
+	const db = await getDb();
+	const [noteCount, rawCounter, info] = await Promise.all([
+		db.count(NOTES_STORE),
+		db.get(META_STORE, 'counter'),
+		loadStorageInfo(db),
+	]);
+
+	return {
+		provider: 'indexeddb',
+		dbName: DB_NAME,
+		dbVersion: DB_VERSION,
+		localOnly: true,
+		noteCount,
+		counter: typeof rawCounter === 'number' ? rawCounter : 0,
+		migratedFromLocalStorage: info.migratedFromLocalStorage,
+		lastBackupAt: info.lastBackupAt,
+		lastImportAt: info.lastImportAt,
+	};
 }
 
 /**
