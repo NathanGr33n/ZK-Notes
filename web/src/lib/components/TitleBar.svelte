@@ -1,24 +1,43 @@
 <script lang="ts">
+	import { onDestroy, onMount } from 'svelte';
 	interface Props {
 		onToggleSidebar: () => void;
 		onOpenSearch: () => void;
 	}
 
 	const { onToggleSidebar, onOpenSearch }: Props = $props();
-
-	const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI?.isElectron;
+	const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.isElectron;
+	let isMaximized = $state(false);
+	let cleanupMaximizedListener: (() => void) | null = null;
 
 	function minimize() {
-		(window as any).electronAPI?.minimize();
+		window.electronAPI?.minimize();
 	}
 
 	function maximize() {
-		(window as any).electronAPI?.maximize();
+		window.electronAPI?.maximize();
 	}
 
 	function close() {
-		(window as any).electronAPI?.close();
+		window.electronAPI?.close();
 	}
+
+	onMount(() => {
+		if (!window.electronAPI) return;
+
+		window.electronAPI
+			.isMaximized()
+			.then((value) => { isMaximized = value; })
+			.catch(() => { isMaximized = false; });
+
+		cleanupMaximizedListener = window.electronAPI.onMaximizedChanged((value) => {
+			isMaximized = value;
+		});
+	});
+
+	onDestroy(() => {
+		cleanupMaximizedListener?.();
+	});
 </script>
 
 <header class="titlebar">
@@ -56,10 +75,17 @@
 						<path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
 					</svg>
 				</button>
-				<button class="window-btn" onclick={maximize} aria-label="Maximize">
-					<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-						<rect x="2.25" y="2.25" width="7.5" height="7.5" rx="1" stroke="currentColor" stroke-width="1.2" fill="none" />
-					</svg>
+				<button class="window-btn" onclick={maximize} aria-label={isMaximized ? 'Restore' : 'Maximize'}>
+					{#if isMaximized}
+						<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+							<path d="M4 2.2h5.8v5.8H9" stroke="currentColor" stroke-width="1.1" fill="none" />
+							<rect x="2.2" y="4" width="5.8" height="5.8" rx="0.8" stroke="currentColor" stroke-width="1.1" fill="none" />
+						</svg>
+					{:else}
+						<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+							<rect x="2.25" y="2.25" width="7.5" height="7.5" rx="1" stroke="currentColor" stroke-width="1.2" fill="none" />
+						</svg>
+					{/if}
 				</button>
 				<button class="window-btn window-btn-close" onclick={close} aria-label="Close">
 					<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
