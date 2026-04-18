@@ -5,6 +5,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 	maximize: () => ipcRenderer.send('window:maximize'),
 	close: () => ipcRenderer.send('window:close'),
 	isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
+	onMaximizedChanged: (callback) => {
+		const handler = (_event, isMaximized) => callback(isMaximized);
+		ipcRenderer.on('window:maximized-changed', handler);
+		return () => ipcRenderer.removeListener('window:maximized-changed', handler);
+	},
 	onQuickCapture: (callback) => {
 		ipcRenderer.on('quick-capture', callback);
 		return () => ipcRenderer.removeListener('quick-capture', callback);
