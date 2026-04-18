@@ -25,6 +25,50 @@
   --rounded-badge: 0.4rem;
 }
 
+[data-theme="slate"] {
+  --b1: 20% 0.01 260;
+  --b2: 24% 0.012 260;
+  --b3: 29% 0.013 260;
+  --bc: 92% 0.005 260;
+  --p: 70% 0.09 245;
+  --pc: 16% 0.008 245;
+  --s: 68% 0.08 200;
+  --sc: 18% 0.006 200;
+  --a: 72% 0.09 160;
+  --ac: 16% 0.006 160;
+  --n: 82% 0.006 260;
+  --nc: 20% 0.01 260;
+  --in: 74% 0.08 245;
+  --su: 72% 0.1 150;
+  --wa: 78% 0.12 90;
+  --er: 70% 0.14 25;
+  --rounded-box: 0.5rem;
+  --rounded-btn: 0.45rem;
+  --rounded-badge: 0.4rem;
+}
+
+[data-density="compact"] {
+  --rounded-box: 0.4rem;
+  --rounded-btn: 0.35rem;
+  --rounded-badge: 0.3rem;
+}
+
+[data-density="compact"] .btn,
+[data-density="compact"] .input,
+[data-density="compact"] .select,
+[data-density="compact"] .textarea {
+  min-height: 2rem;
+}
+
+[data-motion="reduced"] *,
+[data-motion="reduced"] *::before,
+[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 [data-theme="dark"] {
   --b1: 16% 0.006 260;
   --b2: 19% 0.007 260;
@@ -60,6 +104,11 @@ body {
   overflow: hidden;
   background: oklch(var(--b1));
   color: oklch(var(--bc));
+}
+
+:focus-visible {
+  outline: 2px solid oklch(var(--p) / 0.48);
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {
