@@ -2,18 +2,25 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
-	import { themeStore } from '$lib/themeStore.svelte';
+	import { THEMES, themeStore } from '$lib/themeStore.svelte';
 	import { noteStore } from '$lib/noteStore.svelte';
 	import { slide } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import TitleBar from '$lib/components/TitleBar.svelte';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import QuickCapture from '$lib/components/QuickCapture.svelte';
+	type AppTheme = (typeof THEMES)[number];
 
 	let { children } = $props();
+	let storageDiagnostics: Awaited<ReturnType<typeof noteStore.getStorageDiagnostics>> | null = $state(null);
+	let importFeedback = $state('');
+	let importError = $state('');
+	let importInputEl: HTMLInputElement | null = $state(null);
 
 	onMount(() => {
-		noteStore.init();
+		noteStore.init().then(() => {
+			void refreshStorageDiagnostics();
+		});
 	});
 
 	let sidebarOpen = $state(true);
@@ -26,6 +33,63 @@
 	function createPage() {
 		const note = noteStore.add('standard');
 		goto(`/note/${note.id}`);
+	}
+
+	async function refreshStorageDiagnostics() {
+		try {
+			storageDiagnostics = await noteStore.getStorageDiagnostics();
+		} catch {
+			storageDiagnostics = null;
+		}
+	}
+
+	function triggerImport() {
+		importInputEl?.click();
+	}
+
+	function exportBackup() {
+		const payload = noteStore.exportNotes();
+		const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+		const url = URL.createObjectURL(blob);
+		const anchor = document.createElement('a');
+		anchor.href = url;
+		anchor.download = `zk-notes-backup-${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.json`;
+		anchor.click();
+		URL.revokeObjectURL(url);
+		importFeedback = 'Backup exported locally.';
+		importError = '';
+		void refreshStorageDiagnostics();
+	}
+
+	async function importBackup(event: Event) {
+		const input = event.currentTarget as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) return;
+
+		try {
+			const text = await file.text();
+			const result = noteStore.importNotes(text);
+			if (result.added === 0) {
+				importFeedback = '';
+				importError = 'No new notes were imported. Backup may be invalid or already merged.';
+			} else {
+				const skippedSuffix = result.skipped > 0 ? ` (${result.skipped} skipped)` : '';
+				importFeedback = `Imported ${result.added} note${result.added === 1 ? '' : 's'}${skippedSuffix}.`;
+				importError = '';
+			}
+			await refreshStorageDiagnostics();
+		} catch {
+			importFeedback = '';
+			importError = 'Import failed. Please use a valid local backup JSON file.';
+		} finally {
+			input.value = '';
+		}
+	}
+
+	function formatTimestamp(iso: string | null): string {
+		if (!iso) return 'Never';
+		const date = new Date(iso);
+		return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 	}
 
 	const currentPath = $derived($page.url.pathname);
@@ -105,10 +169,60 @@
 					{/if}
 				</div>
 
-				<div class="mt-auto p-3 border-t border-base-300/70">
-					<button class="btn btn-ghost btn-sm w-full justify-start" onclick={() => themeStore.toggle()}>
-						{themeStore.current === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-					</button>
+				<div class="mt-auto p-3 border-t border-base-300/70 space-y-2.5">
+					<div class="space-y-1">
+						<div class="text-[10px] uppercase tracking-wide opacity-50 font-semibold">Appearance</div>
+						<select
+							class="select select-xs w-full"
+							value={themeStore.current}
+							onchange={(e) => themeStore.set(e.currentTarget.value as AppTheme)}
+						>
+							{#each THEMES as theme}
+								<option value={theme}>{theme[0].toUpperCase() + theme.slice(1)}</option>
+							{/each}
+						</select>
+						<div class="flex gap-1.5">
+							<button class="btn btn-ghost btn-xs flex-1" onclick={() => themeStore.toggleDensity()}>
+								{themeStore.density === 'compact' ? 'Compact' : 'Comfortable'}
+							</button>
+							<button
+								class="btn btn-ghost btn-xs flex-1"
+								onclick={() => themeStore.setMotionMode(themeStore.motion === 'full' ? 'reduced' : 'full')}
+							>
+								{themeStore.motion === 'full' ? 'Motion: Full' : 'Motion: Reduced'}
+							</button>
+						</div>
+					</div>
+
+					<div class="space-y-1.5">
+						<div class="text-[10px] uppercase tracking-wide opacity-50 font-semibold">Storage</div>
+						<div class="text-[11px] opacity-65 leading-relaxed">
+							Local-only ({storageDiagnostics?.provider ?? 'indexeddb'}) · {storageDiagnostics?.noteCount ?? noteStore.notes.length} notes
+						</div>
+						<div class="text-[10px] opacity-50 leading-relaxed">
+							Last backup: {formatTimestamp(storageDiagnostics?.lastBackupAt ?? null)}
+						</div>
+						<div class="text-[10px] opacity-50 leading-relaxed">
+							Last import: {formatTimestamp(storageDiagnostics?.lastImportAt ?? null)}
+						</div>
+						<div class="flex gap-1.5">
+							<button class="btn btn-outline btn-xs flex-1" onclick={exportBackup}>Export backup</button>
+							<button class="btn btn-outline btn-xs flex-1" onclick={triggerImport}>Import backup</button>
+						</div>
+						<input
+							bind:this={importInputEl}
+							type="file"
+							accept=".json,application/json"
+							class="hidden"
+							onchange={importBackup}
+						/>
+						{#if importFeedback}
+							<p class="text-[10px] text-success leading-relaxed">{importFeedback}</p>
+						{/if}
+						{#if importError}
+							<p class="text-[10px] text-error leading-relaxed">{importError}</p>
+						{/if}
+					</div>
 				</div>
 			</aside>
 		{/if}
