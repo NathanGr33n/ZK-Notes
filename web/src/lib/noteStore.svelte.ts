@@ -1,9 +1,84 @@
 import type { Note, NoteType, NoteColor, SortMode } from './types';
-import { createNote } from './types';
+import { NOTE_COLORS, createNote } from './types';
 import { extractLinkTargets } from './linkParser';
 import { extractTags } from './tagParser';
 import { searchNotes, type SearchResult } from './searchEngine';
 import * as storage from './storage';
+
+const NOTE_TYPE_SET: ReadonlySet<NoteType> = new Set(['fleeting', 'literature', 'permanent', 'standard']);
+
+interface BackupEnvelope {
+	kind: 'zk-notes-backup';
+	version: 1;
+	exportedAt: string;
+	localOnly: true;
+	counter: number;
+	notes: Note[];
+}
+
+interface ParsedImportPayload {
+	notes: unknown[];
+	counter: number | null;
+}
+
+function isValidType(value: unknown): value is NoteType {
+	return typeof value === 'string' && NOTE_TYPE_SET.has(value as NoteType);
+}
+
+function isValidColor(value: unknown): value is NoteColor {
+	return typeof value === 'string' && NOTE_COLORS.includes(value as NoteColor);
+}
+
+function normalizeImportedNote(raw: unknown): Note | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const input = raw as Partial<Note>;
+	if (typeof input.id !== 'string' || !input.id.trim()) return null;
+
+	const id = input.id.trim();
+	const fallback = createNote(id, isValidType(input.type) ? input.type : 'standard');
+
+	return {
+		...fallback,
+		title: typeof input.title === 'string' ? input.title : fallback.title,
+		content: typeof input.content === 'string' ? input.content : fallback.content,
+		type: isValidType(input.type) ? input.type : fallback.type,
+		tags: Array.isArray(input.tags) ? input.tags.filter((t): t is string => typeof t === 'string') : [],
+		links: Array.isArray(input.links) ? input.links.filter((l): l is string => typeof l === 'string') : [],
+		backlinks: Array.isArray(input.backlinks) ? input.backlinks.filter((b): b is string => typeof b === 'string') : [],
+		created: typeof input.created === 'string' ? input.created : fallback.created,
+		lastEdit: typeof input.lastEdit === 'string' ? input.lastEdit : fallback.lastEdit,
+		lastReviewed: typeof input.lastReviewed === 'string' ? input.lastReviewed : undefined,
+		pinned: input.pinned === true,
+		archived: input.archived === true,
+		color: isValidColor(input.color) ? input.color : 'none',
+	};
+}
+
+function parseImportPayload(value: unknown): ParsedImportPayload | null {
+	if (Array.isArray(value)) {
+		return { notes: value, counter: null };
+	}
+
+	if (!value || typeof value !== 'object') return null;
+	const candidate = value as { notes?: unknown; counter?: unknown; kind?: unknown };
+	if (!Array.isArray(candidate.notes)) return null;
+
+	const parsedCounter = typeof candidate.counter === 'number' && Number.isFinite(candidate.counter)
+		? Math.max(0, Math.floor(candidate.counter))
+		: null;
+
+	if (candidate.kind !== undefined && candidate.kind !== 'zk-notes-backup') return null;
+	return {
+		notes: candidate.notes,
+		counter: parsedCounter,
+	};
+}
+
+function counterFromNoteId(id: string): number {
+	const match = /^ZK-(\d+)$/.exec(id);
+	if (!match) return 0;
+	return parseInt(match[1], 10) || 0;
+}
 
 /**
  * Central reactive store for all Zettelkasten notes.
@@ -162,24 +237,59 @@ function createNoteStore() {
 
 	/** Export all notes as a JSON string. */
 	function exportNotes(): string {
-		return JSON.stringify(notes, null, 2);
+		const payload: BackupEnvelope = {
+			kind: 'zk-notes-backup',
+			version: 1,
+			exportedAt: new Date().toISOString(),
+			localOnly: true,
+			counter,
+			notes,
+		};
+		storage.recordBackupEvent(); // fire-and-forget
+		return JSON.stringify(payload, null, 2);
 	}
 
 	/** Import notes from JSON, merging by ID. */
-	function importNotes(json: string) {
+	function importNotes(json: string): { added: number; skipped: number } {
 		try {
-			const imported: Note[] = JSON.parse(json);
+			const parsed = parseImportPayload(JSON.parse(json));
+			if (!parsed) return { added: 0, skipped: 0 };
 			const existing = new Set(notes.map((n) => n.id));
-			const newNotes = imported.filter((n) => !existing.has(n.id));
-			const normalized = newNotes.map((n) => ({
-				...n,
-				pinned: n.pinned ?? false,
-				archived: n.archived ?? false,
-				color: n.color ?? 'none',
-			}));
+			const normalized: Note[] = [];
+			let skipped = 0;
+
+			for (const raw of parsed.notes) {
+				const note = normalizeImportedNote(raw);
+				if (!note || existing.has(note.id)) {
+					skipped++;
+					continue;
+				}
+				existing.add(note.id);
+				normalized.push(note);
+			}
+
+			if (normalized.length === 0) {
+				return { added: 0, skipped };
+			}
+
 			notes = [...notes, ...normalized];
+			counter = Math.max(
+				counter,
+				parsed.counter ?? 0,
+				...normalized.map((n) => counterFromNoteId(n.id)),
+			);
+			storage.saveCounter(counter); // fire-and-forget
 			storage.saveAll(notes); // fire-and-forget full write
-		} catch { /* invalid JSON — fail silently */ }
+			storage.recordImportEvent(); // fire-and-forget
+			return { added: normalized.length, skipped };
+		} catch {
+			/* invalid JSON — fail silently */
+			return { added: 0, skipped: 0 };
+		}
+	}
+
+	function getStorageDiagnostics(): Promise<storage.StorageDiagnostics> {
+		return storage.getDiagnostics();
 	}
 
 	function getById(id: string): Note | undefined {
@@ -217,6 +327,7 @@ function createNoteStore() {
 		sorted,
 		exportNotes,
 		importNotes,
+		getStorageDiagnostics,
 	};
 }
 
