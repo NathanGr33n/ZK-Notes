@@ -2,8 +2,100 @@ const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
+const WINDOW_STATE_FILE = 'window-state.json';
+const DEFAULT_WINDOW_STATE = {
+	width: 1400,
+	height: 920,
+	minWidth: 1080,
+	minHeight: 720,
+};
 
 let server;
+let serverPort = null;
+let mainWindow = null;
+let ipcHandlersRegistered = false;
+
+function getWindowStatePath() {
+	return path.join(app.getPath('userData'), WINDOW_STATE_FILE);
+}
+
+function loadWindowState() {
+	const defaults = {
+		width: DEFAULT_WINDOW_STATE.width,
+		height: DEFAULT_WINDOW_STATE.height,
+		x: undefined,
+		y: undefined,
+		isMaximized: false,
+	};
+
+	try {
+		const raw = fs.readFileSync(getWindowStatePath(), 'utf8');
+		const parsed = JSON.parse(raw);
+		return {
+			width: typeof parsed.width === 'number' ? parsed.width : defaults.width,
+			height: typeof parsed.height === 'number' ? parsed.height : defaults.height,
+			x: typeof parsed.x === 'number' ? parsed.x : undefined,
+			y: typeof parsed.y === 'number' ? parsed.y : undefined,
+			isMaximized: parsed.isMaximized === true,
+		};
+	} catch {
+		return defaults;
+	}
+}
+
+function saveWindowState(win) {
+	if (!win || win.isDestroyed()) return;
+
+	const bounds = win.getBounds();
+	const state = {
+		width: bounds.width,
+		height: bounds.height,
+		x: bounds.x,
+		y: bounds.y,
+		isMaximized: win.isMaximized(),
+	};
+
+	try {
+		fs.mkdirSync(path.dirname(getWindowStatePath()), { recursive: true });
+		fs.writeFileSync(getWindowStatePath(), JSON.stringify(state, null, 2), 'utf8');
+	} catch (err) {
+		console.warn('[WindowState] Failed to persist state:', err);
+	}
+}
+
+function publishMaximizedState(win) {
+	if (!win || win.isDestroyed()) return;
+	win.webContents.send('window:maximized-changed', win.isMaximized());
+}
+
+function registerIpcHandlers() {
+	if (ipcHandlersRegistered) return;
+	ipcHandlersRegistered = true;
+
+	ipcMain.on('window:minimize', (event) => {
+		const win = BrowserWindow.fromWebContents(event.sender);
+		win?.minimize();
+	});
+
+	ipcMain.on('window:maximize', (event) => {
+		const win = BrowserWindow.fromWebContents(event.sender);
+		if (!win) return;
+
+		if (win.isMaximized()) win.unmaximize();
+		else win.maximize();
+		publishMaximizedState(win);
+	});
+
+	ipcMain.on('window:close', (event) => {
+		const win = BrowserWindow.fromWebContents(event.sender);
+		win?.close();
+	});
+
+	ipcMain.handle('window:isMaximized', (event) => {
+		const win = BrowserWindow.fromWebContents(event.sender);
+		return win ? win.isMaximized() : false;
+	});
+}
 
 function getMimeType(filePath) {
 	const ext = path.extname(filePath).toLowerCase();
@@ -103,17 +195,27 @@ function startStaticServer(rootDir) {
 		server.listen(0, '127.0.0.1', () => {
 			const address = server.address();
 			if (!address || typeof address === 'string') return reject(new Error('Failed to bind server port'));
+			serverPort = address.port;
 			resolve(address.port);
 		});
 	});
 }
 
+async function ensureStaticServer(rootDir) {
+	if (server && serverPort !== null) {
+		return serverPort;
+	}
+
+	return startStaticServer(rootDir);
+}
+
 function createMainWindow() {
-	const win = new BrowserWindow({
-		width: 1400,
-		height: 920,
-		minWidth: 1080,
-		minHeight: 720,
+	const savedState = loadWindowState();
+	const windowOptions = {
+		width: savedState.width,
+		height: savedState.height,
+		minWidth: DEFAULT_WINDOW_STATE.minWidth,
+		minHeight: DEFAULT_WINDOW_STATE.minHeight,
 		show: false,
 		frame: false,
 		titleBarStyle: 'hidden',
@@ -124,27 +226,44 @@ function createMainWindow() {
 			nodeIntegration: false,
 			preload: path.join(__dirname, 'preload.cjs'),
 		}
+	};
+
+	if (typeof savedState.x === 'number') windowOptions.x = savedState.x;
+	if (typeof savedState.y === 'number') windowOptions.y = savedState.y;
+
+	const win = new BrowserWindow(windowOptions);
+	if (savedState.isMaximized) {
+		win.maximize();
+	}
+
+	const persistWindowState = () => saveWindowState(win);
+	win.on('resize', persistWindowState);
+	win.on('move', persistWindowState);
+	win.on('close', persistWindowState);
+	win.on('maximize', () => {
+		persistWindowState();
+		publishMaximizedState(win);
+	});
+	win.on('unmaximize', () => {
+		persistWindowState();
+		publishMaximizedState(win);
 	});
 
 	win.once('ready-to-show', () => {
 		win.show();
+		publishMaximizedState(win);
 	});
-
-	// Window control IPC handlers
-	ipcMain.on('window:minimize', () => win.minimize());
-	ipcMain.on('window:maximize', () => {
-		if (win.isMaximized()) win.unmaximize();
-		else win.maximize();
-	});
-	ipcMain.on('window:close', () => win.close());
-	ipcMain.handle('window:isMaximized', () => win.isMaximized());
 
 	// Global shortcut for quick capture
-	globalShortcut.register('CommandOrControl+Shift+N', () => {
+	globalShortcut.unregister('CommandOrControl+Shift+N');
+	const shortcutRegistered = globalShortcut.register('CommandOrControl+Shift+N', () => {
 		win.webContents.send('quick-capture');
 		if (win.isMinimized()) win.restore();
 		win.focus();
 	});
+	if (!shortcutRegistered) {
+		console.warn('Failed to register quick-capture shortcut');
+	}
 
 	// Log console messages from renderer
 	win.webContents.on('console-message', (event, level, message, line, sourceId) => {
@@ -156,11 +275,19 @@ function createMainWindow() {
 		console.error('Page failed to load:', errorCode, errorDescription, validatedURL);
 	});
 
+	win.on('closed', () => {
+		if (mainWindow === win) {
+			mainWindow = null;
+		}
+	});
+
 	return win;
 }
 
 async function bootstrap() {
+	registerIpcHandlers();
 	const win = createMainWindow();
+	mainWindow = win;
 
 	const startUrl = process.env.ELECTRON_START_URL;
 	if (startUrl) {
@@ -182,13 +309,36 @@ async function bootstrap() {
 		return;
 	}
 
-	const port = await startStaticServer(rootDir);
+	const port = await ensureStaticServer(rootDir);
 	console.log('Static server running on port:', port);
 	console.log('Loading from:', `http://127.0.0.1:${port}/`);
 	await win.loadURL(`http://127.0.0.1:${port}/`);
 }
 
-app.whenReady().then(bootstrap);
+const hasSingleInstanceLock = app.requestSingleInstanceLock();
+if (!hasSingleInstanceLock) {
+	app.quit();
+} else {
+	app.whenReady()
+		.then(bootstrap)
+		.catch((err) => {
+			console.error('Bootstrap failed:', err);
+			app.quit();
+		});
+
+	app.on('second-instance', () => {
+		if (!mainWindow) return;
+		if (mainWindow.isMinimized()) mainWindow.restore();
+		mainWindow.focus();
+	});
+
+	app.on('activate', () => {
+		if (BrowserWindow.getAllWindows().length > 0) return;
+		bootstrap().catch((err) => {
+			console.error('Bootstrap failed on activate:', err);
+		});
+	});
+}
 
 app.on('window-all-closed', () => {
 	if (process.platform !== 'darwin') app.quit();
@@ -196,5 +346,9 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
 	globalShortcut.unregisterAll();
-	if (server) server.close();
+	if (server) {
+		server.close();
+		server = null;
+		serverPort = null;
+	}
 });
