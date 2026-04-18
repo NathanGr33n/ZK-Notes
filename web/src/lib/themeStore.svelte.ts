@@ -29,8 +29,8 @@ function createThemeStore() {
 }
 
 function loadTheme(): Theme {
-	if (typeof localStorage === 'undefined') return 'dark';
-	return (localStorage.getItem(THEME_KEY) as Theme) ?? 'dark';
+	if (typeof localStorage === 'undefined') return 'light';
+	return (localStorage.getItem(THEME_KEY) as Theme) ?? 'light';
 }
 
 function applyTheme(theme: Theme) {

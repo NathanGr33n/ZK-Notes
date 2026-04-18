@@ -110,16 +110,24 @@ function startStaticServer(rootDir) {
 
 function createMainWindow() {
 	const win = new BrowserWindow({
-		width: 1200,
-		height: 800,
+		width: 1400,
+		height: 920,
+		minWidth: 1080,
+		minHeight: 720,
+		show: false,
 		frame: false,
 		titleBarStyle: 'hidden',
-		backgroundColor: '#0d0d0d',
+		backgroundColor: '#f7f6f3',
+		autoHideMenuBar: true,
 		webPreferences: {
 			contextIsolation: true,
 			nodeIntegration: false,
 			preload: path.join(__dirname, 'preload.cjs'),
 		}
+	});
+
+	win.once('ready-to-show', () => {
+		win.show();
 	});
 
 	// Window control IPC handlers
@@ -158,7 +166,6 @@ async function bootstrap() {
 	if (startUrl) {
 		console.log('Loading from dev server:', startUrl);
 		await win.loadURL(startUrl);
-		win.webContents.openDevTools();
 		return;
 	}
 

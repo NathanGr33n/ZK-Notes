@@ -11,59 +11,59 @@
 	function minimize() {
 		(window as any).electronAPI?.minimize();
 	}
+
 	function maximize() {
 		(window as any).electronAPI?.maximize();
 	}
+
 	function close() {
 		(window as any).electronAPI?.close();
 	}
 </script>
 
 <header class="titlebar">
-	<div class="titlebar-drag">
-		<!-- Left: sidebar toggle + branding -->
+	<div class="titlebar-row">
 		<div class="titlebar-left">
 			<button
-				class="titlebar-btn"
+				class="titlebar-icon-btn"
 				onclick={onToggleSidebar}
 				aria-label="Toggle sidebar"
+				title="Toggle sidebar"
 			>
-				<svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-					<path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+					<path d="M2 4h12M2 8h12M2 12h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
 				</svg>
 			</button>
 			<div class="titlebar-brand">
-				<span class="titlebar-logo">Z</span>
-				<span class="titlebar-name">ZK-Notes</span>
+				<span class="titlebar-brand-dot" aria-hidden="true"></span>
+				<span class="titlebar-brand-name">ZK Notes</span>
 			</div>
 		</div>
 
-		<!-- Center: search trigger -->
-		<button class="titlebar-search" onclick={onOpenSearch}>
-			<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-				<circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/>
-				<path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+		<button class="titlebar-search" onclick={onOpenSearch} title="Search (Ctrl+K)">
+			<svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+				<circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5" />
+				<path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
 			</svg>
-			<span>Search notes...</span>
+			<span>Search</span>
 			<kbd>Ctrl+K</kbd>
 		</button>
 
-		<!-- Right: window controls -->
 		<div class="titlebar-right">
 			{#if isElectron}
 				<button class="window-btn" onclick={minimize} aria-label="Minimize">
-					<svg width="12" height="12" viewBox="0 0 12 12">
-						<path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+					<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+						<path d="M2 6h8" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
 					</svg>
 				</button>
 				<button class="window-btn" onclick={maximize} aria-label="Maximize">
-					<svg width="12" height="12" viewBox="0 0 12 12">
-						<rect x="2" y="2" width="8" height="8" rx="1" stroke="currentColor" stroke-width="1.2" fill="none"/>
+					<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+						<rect x="2.25" y="2.25" width="7.5" height="7.5" rx="1" stroke="currentColor" stroke-width="1.2" fill="none" />
 					</svg>
 				</button>
 				<button class="window-btn window-btn-close" onclick={close} aria-label="Close">
-					<svg width="12" height="12" viewBox="0 0 12 12">
-						<path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+					<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+						<path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
 					</svg>
 				</button>
 			{/if}
@@ -75,17 +75,16 @@
 	.titlebar {
 		height: 40px;
 		flex-shrink: 0;
-		background: var(--titlebar-bg, rgba(13, 13, 13, 0.95));
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-		backdrop-filter: blur(12px);
-		-webkit-backdrop-filter: blur(12px);
+		background: oklch(var(--b2));
+		border-bottom: 1px solid oklch(var(--b3) / 0.75);
 		user-select: none;
-		z-index: 100;
+		z-index: 40;
 	}
 
-	.titlebar-drag {
+	.titlebar-row {
 		display: flex;
 		align-items: center;
+		gap: 10px;
 		height: 100%;
 		padding: 0 8px;
 		-webkit-app-region: drag;
@@ -95,117 +94,106 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
+		min-width: 0;
 		-webkit-app-region: no-drag;
 	}
 
-	.titlebar-btn {
-		display: flex;
+	.titlebar-icon-btn {
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		width: 28px;
 		height: 28px;
+		border-radius: 6px;
 		border: none;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.5);
-		border-radius: 6px;
+		color: oklch(var(--bc) / 0.62);
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: background-color 0.12s ease, color 0.12s ease;
 	}
 
-	.titlebar-btn:hover {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.8);
+	.titlebar-icon-btn:hover {
+		background: oklch(var(--b3) / 0.6);
+		color: oklch(var(--bc) / 0.92);
 	}
 
 	.titlebar-brand {
 		display: flex;
 		align-items: center;
 		gap: 6px;
+		color: oklch(var(--bc) / 0.74);
 	}
 
-	.titlebar-logo {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 22px;
-		height: 22px;
-		background: rgba(255, 255, 255, 0.08);
-		border-radius: 5px;
-		font-size: 11px;
-		font-weight: 700;
-		color: rgba(255, 255, 255, 0.7);
-		letter-spacing: -0.02em;
+	.titlebar-brand-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 999px;
+		background: oklch(var(--p) / 0.75);
 	}
 
-	.titlebar-name {
-		font-size: 12px;
+	.titlebar-brand-name {
+		font-size: 0.78rem;
 		font-weight: 600;
-		color: rgba(255, 255, 255, 0.5);
-		letter-spacing: -0.01em;
+		letter-spacing: 0.01em;
 	}
 
 	.titlebar-search {
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		gap: 8px;
-		margin: 0 auto;
-		padding: 4px 12px;
 		height: 28px;
-		min-width: 220px;
-		background: rgba(255, 255, 255, 0.04);
-		border: 1px solid rgba(255, 255, 255, 0.06);
+		min-width: 0;
+		margin: 0 auto;
+		padding: 0 10px;
 		border-radius: 7px;
-		color: rgba(255, 255, 255, 0.35);
-		font-size: 12px;
+		border: 1px solid oklch(var(--b3) / 0.8);
+		background: oklch(var(--b1));
+		color: oklch(var(--bc) / 0.62);
+		font-size: 0.76rem;
 		cursor: pointer;
-		transition: all 0.15s ease;
+		transition: border-color 0.12s ease, color 0.12s ease, background-color 0.12s ease;
 		-webkit-app-region: no-drag;
 	}
 
 	.titlebar-search:hover {
-		background: rgba(255, 255, 255, 0.06);
-		border-color: rgba(255, 255, 255, 0.1);
-		color: rgba(255, 255, 255, 0.5);
+		background: oklch(var(--b2));
+		border-color: oklch(var(--b3));
+		color: oklch(var(--bc) / 0.9);
 	}
 
-	.titlebar-search kbd {
-		margin-left: auto;
-		padding: 1px 5px;
-		font-size: 10px;
-		background: rgba(255, 255, 255, 0.06);
-		border-radius: 4px;
-		font-family: inherit;
-		color: rgba(255, 255, 255, 0.3);
+	.titlebar-search span {
+		white-space: nowrap;
 	}
 
 	.titlebar-right {
 		display: flex;
 		align-items: center;
 		gap: 2px;
+		margin-left: auto;
 		-webkit-app-region: no-drag;
 	}
 
 	.window-btn {
-		display: flex;
+		display: inline-flex;
 		align-items: center;
 		justify-content: center;
 		width: 32px;
 		height: 28px;
 		border: none;
+		border-radius: 6px;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.4);
+		color: oklch(var(--bc) / 0.62);
 		cursor: pointer;
-		transition: all 0.1s ease;
-		border-radius: 4px;
+		transition: background-color 0.12s ease, color 0.12s ease;
 	}
 
 	.window-btn:hover {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.8);
+		background: oklch(var(--b3) / 0.7);
+		color: oklch(var(--bc));
 	}
 
 	.window-btn-close:hover {
-		background: rgba(232, 65, 65, 0.85);
-		color: white;
+		background: rgba(200, 42, 42, 0.86);
+		color: #fff;
 	}
 </style>
