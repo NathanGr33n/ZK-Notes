@@ -1,94 +1,75 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { noteStore } from '$lib/noteStore.svelte';
-	import NoteCard from '$lib/components/NoteCard.svelte';
 	import type { SortMode } from '$lib/types';
 
 	let sortMode = $state<SortMode>('lastEdit');
 
-	const displayNotes = $derived.by(() => {
-		return noteStore.sorted(noteStore.activeNotes, sortMode);
-	});
+	const displayNotes = $derived.by(() => noteStore.sorted(noteStore.activeNotes, sortMode));
 
-	const stats = $derived.by(() => ({
-		total: noteStore.activeNotes.length,
-		permanent: noteStore.activeNotes.filter((n) => n.type === 'permanent').length,
-		literature: noteStore.activeNotes.filter((n) => n.type === 'literature').length,
-		fleeting: noteStore.activeNotes.filter((n) => n.type === 'fleeting').length,
-		pinned: noteStore.pinnedNotes.length,
-	}));
+	function createPage() {
+		const note = noteStore.add('standard');
+		goto(`/note/${note.id}`);
+	}
+
+	function formatDate(iso: string): string {
+		const date = new Date(iso);
+		return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+	}
 </script>
 
-<div class="space-y-6">
-	<!-- Stats bar -->
-	<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-		<div class="surface p-4">
-			<div class="text-2xl font-bold">{stats.total}</div>
-			<div class="text-xs opacity-40 mt-1">Total Notes</div>
+<div class="space-y-5">
+	<header class="flex items-end justify-between gap-3 flex-wrap">
+		<div>
+			<p class="text-xs uppercase tracking-wide opacity-45 font-medium">Workspace</p>
+			<h1 class="text-2xl font-semibold tracking-tight mt-1">Notes</h1>
+			<p class="text-sm opacity-55 mt-1">{displayNotes.length} page{displayNotes.length === 1 ? '' : 's'}</p>
 		</div>
-		<div class="surface p-4">
-			<div class="text-2xl font-bold">{stats.permanent}</div>
-			<div class="text-xs opacity-40 mt-1">📝 Permanent</div>
-		</div>
-		<div class="surface p-4">
-			<div class="text-2xl font-bold">{stats.literature}</div>
-			<div class="text-xs opacity-40 mt-1">📖 Literature</div>
-		</div>
-		<div class="surface p-4">
-			<div class="text-2xl font-bold">{stats.fleeting}</div>
-			<div class="text-xs opacity-40 mt-1">⚡ Fleeting</div>
-		</div>
-	</div>
 
-	<!-- Sort controls -->
-	<div class="flex items-center justify-between">
-		<h2 class="text-base font-semibold opacity-80">All Notes</h2>
 		<div class="flex items-center gap-2">
-			<span class="text-xs opacity-30">{displayNotes.length} notes</span>
 			<select
 				class="select select-sm select-bordered text-xs"
 				value={sortMode}
 				onchange={(e) => (sortMode = e.currentTarget.value as SortMode)}
 			>
-				<option value="lastEdit">Last Edited</option>
-				<option value="created">Date Created</option>
+				<option value="lastEdit">Last edited</option>
+				<option value="created">Date created</option>
 				<option value="alpha">Alphabetical</option>
 			</select>
+			<button class="btn btn-sm" onclick={createPage}>+ New page</button>
 		</div>
-	</div>
+	</header>
 
-	<!-- Bento Grid -->
 	{#if displayNotes.length === 0}
-		<div class="flex flex-col items-center justify-center py-24">
-			<div class="surface p-8 text-center max-w-md">
-				<div class="text-4xl mb-4">📝</div>
-				<h3 class="text-lg font-semibold mb-2 opacity-80">Start your Zettelkasten</h3>
-				<p class="text-sm opacity-40 mb-6 leading-relaxed">
-					Capture atomic ideas, link them together, and let structure emerge.
-					Use <kbd class="kbd kbd-sm">Ctrl+Shift+N</kbd> for quick capture.
-				</p>
-				<div class="flex gap-2 justify-center">
-					<button class="btn btn-primary btn-sm" onclick={() => noteStore.add('permanent')}>Create Note</button>
-					<button class="btn btn-ghost btn-sm" onclick={() => noteStore.add('fleeting')}>⚡ Quick Note</button>
-				</div>
-			</div>
+		<div class="surface p-12 text-center">
+			<p class="text-xl font-medium mb-2">No pages yet</p>
+			<p class="text-sm opacity-55 mb-5">Create your first page to start building your notes workspace.</p>
+			<button class="btn btn-sm" onclick={createPage}>Create page</button>
 		</div>
 	{:else}
-		<!-- Pinned section -->
-		{#if noteStore.pinnedNotes.length > 0}
-			<div class="space-y-3">
-				<h3 class="text-xs uppercase tracking-wider opacity-40 font-medium">📌 Pinned</h3>
-				<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-					{#each noteStore.pinnedNotes as note (note.id)}
-						<NoteCard {note} size="featured" />
-					{/each}
-				</div>
+		<div class="surface overflow-hidden">
+			<div class="grid grid-cols-[minmax(0,1fr)_165px_120px] px-4 py-2 text-[11px] uppercase tracking-wide opacity-45 font-semibold">
+				<span>Title</span>
+				<span>Last edited</span>
+				<span>Type</span>
 			</div>
-		{/if}
-
-		<!-- All notes bento grid -->
-		<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-			{#each displayNotes as note, i (note.id)}
-				<NoteCard {note} size={i === 0 && !note.pinned ? 'featured' : 'normal'} />
+			{#each displayNotes as note}
+				<a
+					href="/note/{note.id}"
+					class="grid grid-cols-[minmax(0,1fr)_165px_120px] border-t border-base-300/75 notion-surface-hover"
+				>
+					<div class="min-w-0 px-4 py-2.5">
+						<div class="truncate text-sm font-medium">{note.title || 'Untitled'}</div>
+						<div class="mt-0.5 flex items-center gap-2 text-xs opacity-45 min-w-0">
+							<span class="font-mono">{note.id}</span>
+							{#if note.tags.length > 0}
+								<span class="truncate">#{note.tags.join(' #')}</span>
+							{/if}
+						</div>
+					</div>
+					<div class="px-4 py-2.5 text-xs opacity-65 flex items-center">{formatDate(note.lastEdit)}</div>
+					<div class="px-4 py-2.5 text-xs opacity-75 capitalize flex items-center">{note.type}</div>
+				</a>
 			{/each}
 		</div>
 	{/if}

@@ -22,13 +22,12 @@
 	}
 
 	const staticActions: Action[] = [
-		{ id: 'new-permanent', label: 'New Permanent Note', icon: '📝', hint: 'Create', action: () => { noteStore.add('permanent'); close(); } },
+		{ id: 'new-page', label: 'New Page', icon: '📝', hint: 'Create', action: () => { noteStore.add('standard'); close(); } },
 		{ id: 'new-fleeting', label: 'New Fleeting Note', icon: '⚡', hint: 'Create', action: () => { noteStore.add('fleeting'); close(); } },
-		{ id: 'new-literature', label: 'New Literature Note', icon: '📖', hint: 'Create', action: () => { noteStore.add('literature'); close(); } },
-		{ id: 'toggle-theme', label: 'Toggle Theme', icon: '🎨', hint: 'Settings', action: () => { themeStore.toggle(); close(); } },
-		{ id: 'go-home', label: 'Go to Workspace', icon: '🏠', hint: 'Navigate', action: () => { goto('/'); close(); } },
+		{ id: 'new-literature', label: 'New Literature Note', icon: '📚', hint: 'Create', action: () => { noteStore.add('literature'); close(); } },
+		{ id: 'toggle-theme', label: 'Toggle Theme', icon: '🌗', hint: 'Appearance', action: () => { themeStore.toggle(); close(); } },
+		{ id: 'go-home', label: 'Go to Notes', icon: '🏠', hint: 'Navigate', action: () => { goto('/'); close(); } },
 		{ id: 'go-trash', label: 'Open Trash', icon: '🗑️', hint: 'Navigate', action: () => { goto('/trash'); close(); } },
-		{ id: 'go-graph', label: 'Open Knowledge Graph', icon: '🔗', hint: 'Navigate', action: () => { goto('/graph'); close(); } },
 	];
 
 	const results = $derived.by<Action[]>(() => {
@@ -204,12 +203,12 @@
 		z-index: 1;
 		width: 520px;
 		max-width: 90vw;
-		background: rgba(18, 18, 18, 0.96);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
-		box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5);
+		background: oklch(var(--b1) / 0.98);
+		border: 1px solid oklch(var(--b3));
+		border-radius: 10px;
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
 		overflow: hidden;
 	}
 
@@ -218,25 +217,25 @@
 		align-items: center;
 		gap: 10px;
 		padding: 12px 16px;
-		border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+		border-bottom: 1px solid oklch(var(--b3) / 0.85);
 	}
 
 	.palette-search-icon {
 		flex-shrink: 0;
-		color: rgba(255, 255, 255, 0.3);
+		color: oklch(var(--bc) / 0.48);
 	}
 
 	.palette-input {
 		flex: 1;
 		background: transparent;
 		border: none;
-		color: rgba(255, 255, 255, 0.9);
+		color: oklch(var(--bc));
 		font-size: 14px;
 		outline: none;
 	}
 
 	.palette-input::placeholder {
-		color: rgba(255, 255, 255, 0.25);
+		color: oklch(var(--bc) / 0.42);
 	}
 
 	.palette-results {
@@ -254,7 +253,7 @@
 		border: none;
 		background: transparent;
 		border-radius: 8px;
-		color: rgba(255, 255, 255, 0.7);
+		color: oklch(var(--bc) / 0.74);
 		font-size: 13px;
 		cursor: pointer;
 		text-align: left;
@@ -262,8 +261,8 @@
 	}
 
 	.palette-item-active {
-		background: rgba(255, 255, 255, 0.06);
-		color: rgba(255, 255, 255, 0.95);
+		background: oklch(var(--b3) / 0.72);
+		color: oklch(var(--bc));
 	}
 
 	.palette-item-icon {
@@ -281,14 +280,14 @@
 	.palette-item-hint {
 		flex-shrink: 0;
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.25);
+		color: oklch(var(--bc) / 0.5);
 		text-transform: capitalize;
 	}
 
 	.palette-empty {
 		padding: 24px;
 		text-align: center;
-		color: rgba(255, 255, 255, 0.25);
+		color: oklch(var(--bc) / 0.5);
 		font-size: 13px;
 	}
 
@@ -296,12 +295,12 @@
 		display: flex;
 		gap: 16px;
 		padding: 8px 16px;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
-		background: rgba(255, 255, 255, 0.02);
+		border-top: 1px solid oklch(var(--b3) / 0.85);
+		background: oklch(var(--b2) / 0.7);
 	}
 
 	.palette-footer span {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.2);
+		color: oklch(var(--bc) / 0.52);
 	}
 </style>

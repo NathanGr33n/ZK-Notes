@@ -117,8 +117,8 @@
 		align-items: center;
 		gap: 2px;
 		padding: 6px 8px;
-		background: rgba(255, 255, 255, 0.02);
-		border: 1px solid rgba(255, 255, 255, 0.06);
+		background: oklch(var(--b2));
+		border: 1px solid oklch(var(--b3) / 0.82);
 		border-radius: 8px;
 		flex-wrap: wrap;
 	}
@@ -131,7 +131,7 @@
 		height: 28px;
 		border: none;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.45);
+		color: oklch(var(--bc) / 0.65);
 		border-radius: 5px;
 		cursor: pointer;
 		font-size: 12px;
@@ -141,21 +141,7 @@
 	}
 
 	.toolbar-btn:hover {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.8);
-	}
-
-	:global([data-theme="light"]) .editor-toolbar {
-		background: rgba(0, 0, 0, 0.02);
-		border-color: rgba(0, 0, 0, 0.08);
-	}
-
-	:global([data-theme="light"]) .toolbar-btn {
-		color: rgba(0, 0, 0, 0.45);
-	}
-
-	:global([data-theme="light"]) .toolbar-btn:hover {
-		background: rgba(0, 0, 0, 0.06);
-		color: rgba(0, 0, 0, 0.8);
+		background: oklch(var(--b3) / 0.72);
+		color: oklch(var(--bc) / 0.95);
 	}
 </style>

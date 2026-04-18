@@ -147,12 +147,12 @@
 		z-index: 1;
 		width: 480px;
 		max-width: 90vw;
-		background: rgba(20, 20, 20, 0.95);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 12px;
-		backdrop-filter: blur(24px);
-		-webkit-backdrop-filter: blur(24px);
-		box-shadow: 0 24px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+		background: oklch(var(--b1) / 0.98);
+		border: 1px solid oklch(var(--b3));
+		border-radius: 10px;
+		backdrop-filter: blur(14px);
+		-webkit-backdrop-filter: blur(14px);
+		box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
 		overflow: hidden;
 	}
 
@@ -166,7 +166,7 @@
 	.quick-capture-badge {
 		font-size: 11px;
 		font-weight: 600;
-		color: oklch(65% 0.16 80);
+		color: oklch(var(--bc) / 0.72);
 		letter-spacing: 0.02em;
 	}
 
@@ -178,15 +178,15 @@
 		height: 24px;
 		border: none;
 		background: transparent;
-		color: rgba(255, 255, 255, 0.3);
+		color: oklch(var(--bc) / 0.5);
 		border-radius: 4px;
 		cursor: pointer;
 		transition: all 0.1s ease;
 	}
 
 	.quick-capture-close:hover {
-		background: rgba(255, 255, 255, 0.08);
-		color: rgba(255, 255, 255, 0.6);
+		background: oklch(var(--b3) / 0.7);
+		color: oklch(var(--bc));
 	}
 
 	.quick-capture-title {
@@ -195,7 +195,7 @@
 		padding: 12px 16px 4px;
 		background: transparent;
 		border: none;
-		color: rgba(255, 255, 255, 0.9);
+		color: oklch(var(--bc));
 		font-size: 16px;
 		font-weight: 600;
 		outline: none;
@@ -203,7 +203,7 @@
 	}
 
 	.quick-capture-title::placeholder {
-		color: rgba(255, 255, 255, 0.25);
+		color: oklch(var(--bc) / 0.38);
 	}
 
 	.quick-capture-content {
@@ -212,7 +212,7 @@
 		padding: 4px 16px 12px;
 		background: transparent;
 		border: none;
-		color: rgba(255, 255, 255, 0.7);
+		color: oklch(var(--bc) / 0.84);
 		font-size: 13px;
 		line-height: 1.6;
 		outline: none;
@@ -220,7 +220,7 @@
 	}
 
 	.quick-capture-content::placeholder {
-		color: rgba(255, 255, 255, 0.2);
+		color: oklch(var(--bc) / 0.38);
 	}
 
 	.quick-capture-footer {
@@ -228,13 +228,13 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 8px 12px;
-		border-top: 1px solid rgba(255, 255, 255, 0.06);
-		background: rgba(255, 255, 255, 0.02);
+		border-top: 1px solid oklch(var(--b3) / 0.85);
+		background: oklch(var(--b2) / 0.68);
 	}
 
 	.quick-capture-hint {
 		font-size: 11px;
-		color: rgba(255, 255, 255, 0.2);
+		color: oklch(var(--bc) / 0.52);
 	}
 
 	.quick-capture-actions {

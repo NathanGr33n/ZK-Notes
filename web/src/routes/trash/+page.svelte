@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { noteStore } from '$lib/noteStore.svelte';
-	import { goto } from '$app/navigation';
 
 	function restoreNote(id: string) {
 		noteStore.restore(id);
@@ -24,8 +23,8 @@
 <div class="max-w-3xl mx-auto space-y-6">
 	<div class="flex items-center justify-between">
 		<div>
-			<h2 class="text-lg font-semibold">🗑️ Trash</h2>
-			<p class="text-xs opacity-40 mt-1">{noteStore.archivedNotes.length} notes in trash</p>
+			<h2 class="text-2xl font-semibold tracking-tight">Trash</h2>
+			<p class="text-xs opacity-55 mt-1">{noteStore.archivedNotes.length} page{noteStore.archivedNotes.length === 1 ? '' : 's'} in trash</p>
 		</div>
 		<div class="flex gap-2">
 			<a href="/" class="btn btn-ghost btn-sm">&larr; Back</a>
@@ -37,9 +36,8 @@
 
 	{#if noteStore.archivedNotes.length === 0}
 		<div class="flex flex-col items-center justify-center py-20">
-			<div class="surface p-8 text-center">
-				<div class="text-3xl mb-3">🗑️</div>
-				<p class="text-sm opacity-40">Trash is empty</p>
+			<div class="surface p-8 text-center min-w-80">
+				<p class="text-sm opacity-60">Trash is empty</p>
 			</div>
 		</div>
 	{:else}
@@ -48,7 +46,7 @@
 				<div class="surface p-4 flex items-center gap-4">
 					<div class="flex-1 min-w-0">
 						<div class="text-sm font-medium truncate">{note.title || 'Untitled'}</div>
-						<div class="text-xs opacity-40 mt-1 flex gap-3">
+						<div class="text-xs opacity-55 mt-1 flex gap-3">
 							<span class="font-mono">{note.id}</span>
 							<span class="capitalize">{note.type}</span>
 							<span>Edited {new Date(note.lastEdit).toLocaleDateString()}</span>
