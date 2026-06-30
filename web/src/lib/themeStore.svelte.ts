@@ -28,9 +28,16 @@ function createThemeStore() {
 	let density = $state<Density>(loadDensity());
 	let motion = $state<MotionMode>(loadMotionMode());
 
+	function apply() {
+		applyTheme(theme);
+		applyDensity(density);
+		applyMotionMode(motion);
+	}
+
 	function toggle() {
 		theme = theme === 'dark' ? 'light' : 'dark';
 		persist(THEME_KEY, theme);
+		apply();
 	}
 
 	function cycle() {
@@ -38,16 +45,19 @@ function createThemeStore() {
 		const nextIndex = (currentIndex + 1) % THEMES.length;
 		theme = THEMES[nextIndex];
 		persist(THEME_KEY, theme);
+		apply();
 	}
 
 	function set(t: Theme) {
 		theme = t;
 		persist(THEME_KEY, theme);
+		apply();
 	}
 
 	function setDensity(next: Density) {
 		density = next;
 		persist(DENSITY_KEY, density);
+		apply();
 	}
 
 	function toggleDensity() {
@@ -57,13 +67,12 @@ function createThemeStore() {
 	function setMotionMode(next: MotionMode) {
 		motion = next;
 		persist(MOTION_KEY, motion);
+		apply();
 	}
 
-	$effect(() => {
-		applyTheme(theme);
-		applyDensity(density);
-		applyMotionMode(motion);
-	});
+	// Apply persisted appearance on initial load. The apply* helpers are
+	// SSR-safe and no-op when `document` is undefined.
+	apply();
 
 	return {
 		get current() { return theme; },
